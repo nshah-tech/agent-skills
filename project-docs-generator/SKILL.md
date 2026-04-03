@@ -29,6 +29,41 @@ Industry best practices mandate decoupling documentation into specific, purpose-
     - **Preserve existing hand-written design decisions and token values during updates.** Only add new tokens or patterns discovered in code.
 10. **`.agent/workflows/update-docs.md`**: A custom "slash command" workflow mapping precisely to these documentation commands. It empowers any local developer to type `/update-docs` and natively trigger instantaneous documentation regeneration without navigating complex prompt chains.
 
+## Cross-Skill Integration: `/update-all` Workflow
+
+After creating `.agent/workflows/update-docs.md`, **always check** if `.agent/workflows/update-bruno.md` already exists in the project (created by the `bruno-cli` skill). If it does, create a combined `.agent/workflows/update-all.md` workflow that scans routes once and produces both outputs in a single pass.
+
+The `/update-all` workflow should contain:
+
+```markdown
+---
+description: Scan routes once, then update both project documentation and Bruno API collection in a single pass to avoid duplicate token consumption.
+---
+
+# Update All — Docs + Bruno
+
+This workflow combines `/update-docs` and `/update-bruno` into a single pass. Instead of scanning controllers and route files twice, the agent reads them once and produces both outputs from the same research.
+
+## Steps
+
+1. **Shared Research Phase**
+   Scan all NestJS controllers (`*.controller.ts`) and Express route files (`*.routes.ts`). For each route, extract: HTTP method, path, auth type (guards/middleware), path params, query params, body shape, and any decorators. Also read `package.json` for framework detection. Hold all route data in memory for the next two steps.
+
+2. **Update Documentation**
+   // turbo
+   `@[.agent/skills/project-docs-generator] Using the route and project data already gathered in this conversation, refresh the documentation for this repository. Do NOT re-scan controller or route files — use what was already collected in step 1.`
+
+3. **Update Bruno Collection**
+   // turbo
+   `@[/bruno-cli] Using the route data already gathered in this conversation, sync the Bruno collection. Do NOT re-scan controller or route files — use what was already collected in step 1. Preserve existing user-written scripts, tests, and assertions in .bru files.`
+
+4. **Validate Bruno (if applicable)**
+   If the Bruno collection exists and `bru` CLI is installed, run:
+   `cd bruno && bru run --env local --tests-only`
+```
+
+If `.agent/workflows/update-bruno.md` does **not** exist, skip this step — the `/update-all` workflow only makes sense when both skills are present.
+
 ## Workflow Execution Steps
 
 When generating or updating documentation for a target repository:
@@ -48,3 +83,4 @@ When generating or updating documentation for a target repository:
     - **Mermaid.js blocks** for architecture diagrams.
     - **Callout Alerts** for critical deployment info.
     - **Well-Formatted Tables**: Ensure that all markdown tables are properly aligned with spaces so they remain easily readable even when edited as plain text in a terminal.
+5.  **Cross-Skill Check**: After all documentation files are written, check if `.agent/workflows/update-bruno.md` exists. If it does and `.agent/workflows/update-all.md` does not, create the `/update-all` workflow as described above.
