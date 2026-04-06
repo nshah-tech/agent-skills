@@ -61,6 +61,7 @@ python bruno/scripts/generate_bruno.py \
 | `script:pre-request` | User | 🔒 Always preserved |
 | `script:post-response` | User | 🔒 Always preserved |
 | `tests` | User | 🔒 Preserved if tests added |
+| `docs` | User | 🔒 Preserved if customized |
 
 ### What Claude does when you say /update-bruno
 
@@ -222,6 +223,201 @@ assert {
   res.body.id: isDefined
 }
 ```
+
+---
+
+## The `docs` Block — Request Documentation
+
+Every `.bru` file should have a `docs` block. It is a **Markdown text block** that renders as a "Docs" tab in the Bruno UI, giving anyone reading the collection a complete picture of the endpoint without needing to open the source code.
+
+The `docs` block lives at the **end** of the `.bru` file and is always user-owned — the scanner generates a starter template on first creation, but never overwrites it after that.
+
+### What to put in a docs block
+
+A well-written `docs` block covers four things:
+
+1. **Overview** — what the endpoint does and when to use it
+2. **Request shape** — path params, query params, body fields with types and required/optional markers
+3. **All possible responses** — every status code the endpoint can return, with example payloads
+4. **Notes** — rate limits, deprecation warnings, links to related endpoints
+
+### Full template
+
+```bru
+docs {
+  # Create User
+
+  `POST` `/api/users`
+
+  ## Overview
+  Creates a new user account. The email must be unique across the system.
+  Returns the created user with their assigned ID.
+
+  ## Authentication
+  Requires a valid Bearer token with `admin` role.
+
+  ## Request
+
+  ### Body
+  | Field      | Type   | Required | Description                        |
+  |------------|--------|----------|------------------------------------|
+  | `name`     | string | ✅ Yes   | Full display name                  |
+  | `email`    | string | ✅ Yes   | Valid email, must be unique        |
+  | `role`     | string | ❌ No    | `"admin"` \| `"user"` \| `"guest"`. Defaults to `"user"` |
+  | `metadata` | object | ❌ No    | Arbitrary key-value pairs          |
+
+  ```json
+  {
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "role": "admin"
+  }
+  ```
+
+  ## Responses
+
+  ### ✅ 201 Created
+  User was created successfully.
+  ```json
+  {
+    "id": "user_abc123",
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "role": "admin",
+    "createdAt": "2024-01-15T10:30:00Z"
+  }
+  ```
+
+  ### ❌ 400 Bad Request
+  One or more fields failed validation.
+  ```json
+  {
+    "error": "VALIDATION_ERROR",
+    "message": "email is required",
+    "fields": { "email": "must be a valid email address" }
+  }
+  ```
+
+  ### ❌ 401 Unauthorized
+  Bearer token is missing or expired.
+  ```json
+  { "error": "UNAUTHORIZED", "message": "Bearer token is missing or expired" }
+  ```
+
+  ### ❌ 403 Forbidden
+  Authenticated but insufficient permissions.
+  ```json
+  { "error": "FORBIDDEN", "message": "Admin role required to create users" }
+  ```
+
+  ### ❌ 409 Conflict
+  A user with this email already exists.
+  ```json
+  { "error": "CONFLICT", "message": "A user with this email already exists" }
+  ```
+
+  ### ❌ 429 Too Many Requests
+  ```json
+  { "error": "RATE_LIMITED", "retryAfter": 30 }
+  ```
+
+  ### ❌ 500 Internal Server Error
+  ```json
+  { "error": "INTERNAL_ERROR", "message": "An unexpected error occurred" }
+  ```
+
+  ## Notes
+  - Rate limit: 10 requests/min per IP
+  - The `id` field is a UUID v4 and is assigned server-side
+}
+```
+
+### Docs block in a complete `.bru` file
+
+The `docs` block goes last, after `tests`:
+
+```bru
+meta {
+  name: Create User
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/users
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "name": "{{name}}",
+    "email": "{{email}}",
+    "role": "user"
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.id: isDefined
+}
+
+tests {
+  test("user created", function () {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody()).to.have.property("id");
+    bru.setVar("newUserId", res.getBody().id);
+  });
+}
+
+docs {
+  # Create User
+
+  `POST` `/api/users`
+
+  ## Overview
+  Creates a new user. Email must be unique.
+
+  ## Authentication
+  Bearer token required. Admin role only.
+
+  ## Request Body
+  | Field   | Type   | Required | Description       |
+  |---------|--------|----------|-------------------|
+  | `name`  | string | ✅ Yes   | Full display name |
+  | `email` | string | ✅ Yes   | Unique email      |
+  | `role`  | string | ❌ No    | Defaults to "user"|
+
+  ## Responses
+  | Status | Meaning                        |
+  |--------|--------------------------------|
+  | 201    | User created successfully      |
+  | 400    | Validation error               |
+  | 401    | Missing or invalid token       |
+  | 403    | Insufficient permissions       |
+  | 409    | Email already in use           |
+  | 500    | Server error                   |
+}
+```
+
+### What the scanner generates automatically
+
+When `/update-bruno` creates a new `.bru` file, it generates a starter `docs` block with:
+- The method, path, and inferred name filled in
+- Auth section based on detected guard
+- Placeholder sections for body, path params, and responses
+- Common response codes pre-populated (200/201, 400, 401, 404, 500)
+
+You fill in the field types, descriptions, and exact response payloads — the scanner handles the scaffolding.
+
+For complete `docs` block syntax including all Markdown features, see `references/bru-lang-blocks.md`.
 
 ---
 

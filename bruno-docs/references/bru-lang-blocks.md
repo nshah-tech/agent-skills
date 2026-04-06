@@ -339,6 +339,165 @@ tests {
 
 ---
 
+## `docs` block — Request Documentation
+
+The `docs` block is a **Markdown text block** that renders as a documentation tab inside the Bruno UI for each request. It is the canonical place to document everything a developer needs to understand and use an endpoint: what it does, what it accepts, and every possible response it can return.
+
+Unlike `assert` or `tests`, the `docs` block is purely informational — it has no effect on request execution.
+
+### Basic structure
+
+```bru
+docs {
+  # Endpoint Title
+
+  `METHOD` `/path`
+
+  ## Overview
+  Brief description of what this endpoint does and when to use it.
+
+  ## Authentication
+  Describe the required auth and how to obtain it.
+
+  ## Request
+
+  ### Path Parameters
+  | Parameter | Type   | Required | Description        |
+  |-----------|--------|----------|--------------------|
+  | `id`      | string | ✅ Yes   | The resource UUID  |
+
+  ### Query Parameters
+  | Parameter | Type    | Required | Default | Description           |
+  |-----------|---------|----------|---------|-----------------------|
+  | `page`    | integer | ❌ No    | 1       | Page number           |
+  | `limit`   | integer | ❌ No    | 20      | Results per page      |
+
+  ### Request Body
+  | Field    | Type   | Required | Description        |
+  |----------|--------|----------|--------------------|
+  | `name`   | string | ✅ Yes   | Full name          |
+  | `email`  | string | ✅ Yes   | Valid email address |
+  | `role`   | string | ❌ No    | Defaults to "user" |
+
+  ```json
+  {
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "role": "admin"
+  }
+  ```
+
+  ## Responses
+
+  ### ✅ 200 OK
+  Returned when the resource is found.
+  ```json
+  {
+    "id": "user_abc123",
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "role": "admin",
+    "createdAt": "2024-01-15T10:30:00Z"
+  }
+  ```
+
+  ### ✅ 201 Created
+  Returned when the resource is successfully created.
+  ```json
+  {
+    "id": "user_abc123",
+    "name": "Jane Doe",
+    "email": "jane@example.com"
+  }
+  ```
+
+  ### ❌ 400 Bad Request
+  Validation failed on the request body.
+  ```json
+  {
+    "error": "VALIDATION_ERROR",
+    "message": "email is required",
+    "fields": { "email": "must be a valid email address" }
+  }
+  ```
+
+  ### ❌ 401 Unauthorized
+  Missing or invalid auth token.
+  ```json
+  { "error": "UNAUTHORIZED", "message": "Bearer token is missing or expired" }
+  ```
+
+  ### ❌ 403 Forbidden
+  Authenticated but insufficient permissions.
+  ```json
+  { "error": "FORBIDDEN", "message": "Admin role required" }
+  ```
+
+  ### ❌ 404 Not Found
+  Resource does not exist.
+  ```json
+  { "error": "NOT_FOUND", "message": "User not found" }
+  ```
+
+  ### ❌ 409 Conflict
+  Duplicate or conflicting resource.
+  ```json
+  { "error": "CONFLICT", "message": "A user with this email already exists" }
+  ```
+
+  ### ❌ 422 Unprocessable Entity
+  Request is well-formed but semantically invalid.
+  ```json
+  { "error": "UNPROCESSABLE", "message": "Password too weak" }
+  ```
+
+  ### ❌ 429 Too Many Requests
+  Rate limit exceeded.
+  ```json
+  { "error": "RATE_LIMITED", "message": "5 requests/min allowed", "retryAfter": 30 }
+  ```
+
+  ### ❌ 500 Internal Server Error
+  ```json
+  { "error": "INTERNAL_ERROR", "message": "An unexpected error occurred" }
+  ```
+
+  ## Notes
+  - Any additional context, caveats, or links to related endpoints.
+}
+```
+
+### Minimal docs block (for simple endpoints)
+
+```bru
+docs {
+  # Get User by ID
+
+  Returns a single user by their UUID.
+
+  **Auth:** Bearer token required (any authenticated user)
+
+  ## Responses
+  | Status | Meaning           |
+  |--------|-------------------|
+  | 200    | User found        |
+  | 401    | Not authenticated |
+  | 404    | User not found    |
+}
+```
+
+### Rules for writing `docs` blocks
+
+- The block contains **raw Markdown** — headers, tables, code fences, bold, lists, and emojis all work
+- Place the `docs` block at the **end** of the `.bru` file, after `tests`
+- Always document **every non-obvious response** — at minimum 200/201, 400, 401, 404, and 500
+- For fields with constrained values, list them: `role: "admin" | "user" | "guest"`
+- For paginated endpoints, document the envelope: `{ data: [], total, page, limit }`
+- Mark fields as required (✅) or optional (❌) in body tables
+- The `docs` block is **user-owned** — the scanner never overwrites it once you've written it
+
+---
+
 ## Environment File Syntax
 
 Stored in `environments/<name>.bru`:

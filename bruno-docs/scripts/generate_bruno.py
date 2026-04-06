@@ -377,6 +377,154 @@ def _parse_express_router(file_path: Path, project_root: Path, mount_map: dict) 
 # .bru file generator
 # ---------------------------------------------------------------------------
 
+def generate_docs_block(route: Route) -> str:
+    """Generate a starter docs block for a route. User fills in types/descriptions."""
+    method = route.method
+    path = route.path
+    name = route.name
+    auth = route.auth
+
+    # Auth description
+    auth_desc = {
+        'bearer': 'Requires a valid Bearer token in the `Authorization` header.',
+        'basic':  'Requires HTTP Basic Auth (username + password).',
+        'apikey': 'Requires an `X-API-Key` header.',
+        'none':   'No authentication required. This is a public endpoint.',
+    }.get(auth, 'See environment variables for auth configuration.')
+
+    # Expected success status
+    success_status = '201 Created' if method == 'POST' else '200 OK'
+    success_meaning = 'Resource created successfully.' if method == 'POST' else 'Request succeeded.'
+
+    lines = ['docs {']
+    lines.append(f'  # {name}')
+    lines.append('')
+    lines.append(f'  `{method}` `{path}`')
+    lines.append('')
+    lines.append('  ## Overview')
+    lines.append(f'  > Describe what this endpoint does and when to use it.')
+    lines.append('')
+
+    # Auth
+    lines.append('  ## Authentication')
+    lines.append(f'  {auth_desc}')
+    lines.append('')
+
+    # Request section
+    lines.append('  ## Request')
+
+    # Path params
+    if route.path_params:
+        lines.append('')
+        lines.append('  ### Path Parameters')
+        lines.append('  | Parameter | Type   | Required | Description |')
+        lines.append('  |-----------|--------|----------|-------------|')
+        for p in route.path_params:
+            lines.append(f'  | `{p}` | string | ✅ Yes | The {p} identifier |')
+
+    # Query params
+    if route.query_params:
+        lines.append('')
+        lines.append('  ### Query Parameters')
+        lines.append('  | Parameter | Type | Required | Default | Description |')
+        lines.append('  |-----------|------|----------|---------|-------------|')
+        for q in route.query_params:
+            lines.append(f'  | `{q}` | string | ❌ No | — | Describe `{q}` |')
+    elif method == 'GET' and not route.path_params:
+        lines.append('')
+        lines.append('  ### Query Parameters')
+        lines.append('  | Parameter | Type    | Required | Default | Description      |')
+        lines.append('  |-----------|---------|----------|---------|------------------|')
+        lines.append('  | `page`    | integer | ❌ No    | 1       | Page number      |')
+        lines.append('  | `limit`   | integer | ❌ No    | 20      | Results per page |')
+
+    # Body
+    if route.has_body:
+        lines.append('')
+        lines.append('  ### Request Body')
+        lines.append('  | Field | Type | Required | Description |')
+        lines.append('  |-------|------|----------|-------------|')
+        if route.body_fields:
+            for bf in route.body_fields:
+                lines.append(f'  | `{bf}` | string | ✅ Yes | Describe `{bf}` |')
+        else:
+            lines.append('  | — | — | — | Add fields here |')
+        lines.append('')
+        lines.append('  ```json')
+        lines.append('  {')
+        lines.append('    "field": "value"')
+        lines.append('  }')
+        lines.append('  ```')
+
+    # Responses
+    lines.append('')
+    lines.append('  ## Responses')
+    lines.append('')
+    lines.append(f'  ### ✅ {success_status}')
+    lines.append(f'  {success_meaning}')
+    lines.append('  ```json')
+    lines.append('  {')
+    lines.append('    "id": "resource_id"')
+    lines.append('  }')
+    lines.append('  ```')
+
+    # 400 for endpoints with bodies
+    if route.has_body:
+        lines.append('')
+        lines.append('  ### ❌ 400 Bad Request')
+        lines.append('  One or more fields failed validation.')
+        lines.append('  ```json')
+        lines.append('  { "error": "VALIDATION_ERROR", "message": "field is required", "fields": {} }')
+        lines.append('  ```')
+
+    # 401 for authenticated routes
+    if auth != 'none':
+        lines.append('')
+        lines.append('  ### ❌ 401 Unauthorized')
+        lines.append('  Auth token is missing or expired.')
+        lines.append('  ```json')
+        lines.append('  { "error": "UNAUTHORIZED", "message": "Bearer token is missing or expired" }')
+        lines.append('  ```')
+        lines.append('')
+        lines.append('  ### ❌ 403 Forbidden')
+        lines.append('  Authenticated but insufficient permissions.')
+        lines.append('  ```json')
+        lines.append('  { "error": "FORBIDDEN", "message": "Insufficient permissions" }')
+        lines.append('  ```')
+
+    # 404 for routes with path params
+    if route.path_params:
+        lines.append('')
+        lines.append('  ### ❌ 404 Not Found')
+        lines.append('  The requested resource does not exist.')
+        lines.append('  ```json')
+        lines.append('  { "error": "NOT_FOUND", "message": "Resource not found" }')
+        lines.append('  ```')
+
+    # 409 for POST (create) routes
+    if method == 'POST':
+        lines.append('')
+        lines.append('  ### ❌ 409 Conflict')
+        lines.append('  A conflicting resource already exists.')
+        lines.append('  ```json')
+        lines.append('  { "error": "CONFLICT", "message": "Resource already exists" }')
+        lines.append('  ```')
+
+    # 500 always
+    lines.append('')
+    lines.append('  ### ❌ 500 Internal Server Error')
+    lines.append('  ```json')
+    lines.append('  { "error": "INTERNAL_ERROR", "message": "An unexpected error occurred" }')
+    lines.append('  ```')
+
+    lines.append('')
+    lines.append('  ## Notes')
+    lines.append('  > Add rate limits, deprecation warnings, or links to related endpoints here.')
+    lines.append('}')
+
+    return '\n'.join(lines)
+
+
 def generate_bru_content(route: Route, base_url_var: str = 'baseUrl') -> str:
     """Generate the full content of a .bru file for a route."""
     lines = []
@@ -477,6 +625,10 @@ def generate_bru_content(route: Route, base_url_var: str = 'baseUrl') -> str:
     lines.append('}')
     lines.append('')
 
+    # Docs block — starter template, user fills in field types/descriptions/payloads
+    lines.append(generate_docs_block(route))
+    lines.append('')
+
     return '\n'.join(lines)
 
 
@@ -491,7 +643,7 @@ CODE_OWNED_BLOCKS = {'meta', 'get', 'post', 'put', 'patch', 'delete', 'head',
 # Blocks that belong to the user (never overwrite)
 USER_OWNED_BLOCKS = {'script:pre-request', 'script:post-response', 'tests', 'assert',
                      'vars:pre-request', 'vars:post-response', 'body:json',
-                     'body:form-urlencoded', 'body:multipartForm', 'params:query'}
+                     'body:form-urlencoded', 'body:multipartForm', 'params:query', 'docs'}
 
 
 def extract_blocks(content: str) -> dict:
@@ -546,7 +698,7 @@ def merge_bru_file(existing_content: str, new_content: str) -> str:
              'auth:bearer', 'auth:basic', 'auth:apikey', 'auth:oauth2',
              'body:json', 'body:form-urlencoded', 'body:multipartForm', 'body:text', 'body:xml', 'body:graphql',
              'vars:pre-request', 'vars:post-response',
-             'assert', 'script:pre-request', 'script:post-response', 'tests']
+             'assert', 'script:pre-request', 'script:post-response', 'tests', 'docs']
 
     result_parts = []
     for key in order:
