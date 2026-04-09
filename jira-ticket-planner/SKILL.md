@@ -73,13 +73,135 @@ cat > .jira-planner.json << 'EOF'
 EOF
 ```
 
-### Step I-4. Confirm
+### Step I-4. Scaffold the local workflow and skill
 
-Tell the user the file has been created at `.jira-planner.json` and is ready to be committed:
+Create the Antigravity agent directories and write two files:
+
 ```bash
-git add .jira-planner.json
-git commit -m "chore: add jira-planner config"
+mkdir -p .agent/workflows .agent/skills
 ```
+
+**`.agent/workflows/jira.md`** — the entry point teammates invoke:
+
+```markdown
+---
+description: Fetch a Jira ticket and produce an implementation plan for it.
+---
+
+# Jira Ticket Planner — Workflow
+
+**Project:** <displayName>  
+**Atlassian site:** <cloudId>  
+**Default project key:** <defaultProject>
+
+## How to use
+
+Invoke with a ticket key or number:
+- `jira <defaultProject>-1973`
+- `jira 1973`  (expands to `<defaultProject>-1973`)
+- `jira https://<cloudId>/browse/<defaultProject>-1973`
+
+## Steps
+
+1. The config is already known — use `cloudId: <cloudId>` and `defaultProject: <defaultProject>`. Do NOT re-read `.jira-planner.json`; use these values directly.
+2. Extract the ticket key from the argument (expand bare numbers using `<defaultProject>`).
+3. Fetch the ticket using `mcp_atlassian-mcp-server_getJiraIssue` with `cloudId: <cloudId>`.
+4. Follow the full workflow defined in `.agent/skills/jira-ticket-planner.md`.
+```
+
+**`.agent/skills/jira-ticket-planner.md`** — the reusable skill logic (copy of the canonical skill with no config values hardcoded, so it stays generic and reusable across projects):
+
+```markdown
+# Jira Ticket Planner — Skill
+
+Summarize a Jira ticket, research the affected code, and produce an implementation plan.
+
+## Steps
+
+### Step 1. Summarize the Issue
+
+Write a clear, concise summary (3–6 sentences) that answers:
+1. **What is the problem?** — User-facing bug or feature gap in plain English.
+2. **What is the expected behaviour?**
+3. **What is the impact?** — Who is affected and how severely.
+4. **Reproduction context** — Steps, data, or environment details from the ticket or comments.
+
+Avoid copying the Jira description verbatim. If the ticket is vague, call out what is missing and ask the user.
+
+### Step 2. Research the Codebase
+
+1. Use `grep_search` to locate functions, services, or modules mentioned in the ticket.
+2. Use `view_file` to trace the call chain from entry point to the suspected failure point.
+3. Form a hypothesis about the root cause.
+4. Note files, entities, or external systems affected by the fix.
+
+Read at least 2–3 relevant files before writing the plan.
+
+### Step 3. Write the Implementation Plan
+
+Produce `implementation_plan.md`:
+
+\```markdown
+# [Goal — one-line description]
+
+Brief description of the problem and what the fix accomplishes.
+
+> **Project:** <displayName>
+> **Ticket:** [PROJ-XXX](https://cloudId/browse/PROJ-XXX)
+
+## Jira Ticket Summary
+
+| Field | Value |
+|---|---|
+| Key | PROJ-XXX |
+| Type | Bug / Story / Task |
+| Priority | High / Medium / Low |
+| Status | To Do / In Progress |
+| Reporter | Name |
+
+[Distilled summary from Step 1]
+
+## Root Cause Analysis
+
+Explain why the issue occurs, referencing specific files and line numbers.
+
+## Proposed Changes
+
+### [Component Name]
+
+#### [MODIFY] [filename](file:///absolute/path)
+- What will change and why
+
+#### [NEW] [filename](file:///absolute/path)
+- What this new file does
+
+## Open Questions
+
+## Verification Plan
+
+### Automated Tests
+### Manual Verification
+\```
+
+### Step 4. Ask the User
+
+Highlight open questions, ask for approval. If approved, create `task.md`, implement, verify, and produce `walkthrough.md`.
+```
+
+> **Why two files?** The workflow is the repo-specific entry point (has `cloudId` and `defaultProject` baked in). The skill is the generic, reusable logic that the workflow delegates to — and that other workflows in the same repo can also reference.
+
+### Step I-5. Confirm and suggest commit
+
+Tell the user all three files are ready and show the commit command:
+
+```bash
+git add .jira-planner.json .agent/workflows/jira.md .agent/skills/jira-ticket-planner.md
+git commit -m "chore: add jira-planner config and Antigravity agent files"
+```
+
+Also mention:
+- The `.agent/` directory should **not** be in `.gitignore` — it is intentionally committed.
+- Teammates get the full workflow just by pulling the branch — no manual skill installation needed.
 
 ---
 
