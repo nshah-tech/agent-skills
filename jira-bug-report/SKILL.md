@@ -21,8 +21,9 @@ Capture a bug report from the QA engineer, format it cleanly with exact location
 - **Priority**: Assess the severity of the bug described. If it's a crash or data loss, evaluate it as `High`. For logic/workflow bugs, evaluate as `Medium`. For UI/Cosmetic, evaluate as `Low`.
 - **Labels**: Deduce logical tags for the bug (e.g. `frontend`, `backend`, `regression` or specific component names).
 - Before creating anything, you MUST pause and ask the QA:
-    *"I have triaged this bug as Priority: **[Priority]** and assigned tags **[Tags]**. Can you confirm this is correct? Also, do you want to link this bug ticket to a specific feature or parent ticket? (e.g. PROJ-1401). If yes, please provide the ticket number."*
+    *"I have triaged this bug as Priority: **[Priority]** and assigned tags **[Tags]**. Can you confirm this is correct? Also, do you want to link this bug ticket to a specific feature or parent ticket? (e.g. PROJ-1401). Finally, would you like me to capture a video recording of the Chrome browser using my `browser_subagent` to include? If yes, please provide the exact reproduction steps for the browser."*
 - STOP and wait for their response. Ensure you integrate any corrections they have for Priority or Labels.
+- If the user responds YES to capturing a video, use your `browser_subagent` tool to perform the reproduction steps and generate the WebP video artifact.
 
 ### Step 4. Format the Bug Report
 Translate the user's description into the formalized QA bug structure below. Use bold formatting and emojis to visually simulate Jira panels for easier engineering readability.
@@ -66,3 +67,4 @@ If the user provided a ticket to link to in Step 3:
 
 ### Step 7. Finalize
 Return the fully generated Jira link and its ticket key back to the QA tester. Let them know it was successfully created and linked.
+- **IMPORTANT CLEANUP**: If you generated a video using the `browser_subagent` during this session, use the `run_command` tool to delete the video file (e.g., `rm /path/to/video.webp`) after creating the ticket so the user does not have to worry about local cleanup.
