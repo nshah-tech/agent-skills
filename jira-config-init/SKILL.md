@@ -1,6 +1,6 @@
 ---
-name: jira-init
-description: MANUAL TRIGGER ONLY: invoke only when user types /jira-init. Triggers when the user asks to set up or initialise Jira config for a project. Also triggers when the user says "init jira", "setup jira config", or "create jira config".
+name: jira-config-init
+description: MANUAL TRIGGER ONLY: invoke only when user types /jira-config-init. Triggers when the user asks to set up or initialise Jira config for a project. Also triggers when the user says "init jira", "setup jira config", or "create jira config".
 ---
 
 # Jira Config Init — Skill

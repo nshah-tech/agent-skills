@@ -1,6 +1,6 @@
 ---
-name: jira-bug-report
-description: MANUAL TRIGGER ONLY: invoke only when user types /jira-bug-report. Capture a bug report from the user, format it cleanly, auto-triage it, and publish it to Jira.
+name: jira-bug-reporter
+description: MANUAL TRIGGER ONLY: invoke only when user types /jira-bug-reporter. Capture a bug report from the user, format it cleanly, auto-triage it, and publish it to Jira.
 ---
 
 # QA Bug Reporter — Skill

@@ -1,9 +1,9 @@
 ---
-name: jira-ticket-planner
-description: Fetches a Jira ticket, summarizes the issue in plain language, researches the relevant codebase, and produces an implementation plan for the fix. Use this skill whenever the user asks to "check a ticket", "summarize a Jira issue", "investigate a bug from Jira", "plan a fix for ticket X", "look at ACME-XXXX", or any request that involves reading a Jira ticket and producing actionable engineering output. Also trigger when the user pastes a Jira URL or mentions a ticket key like ACME-1234, PROJ-456, etc. and wants to understand or fix the issue described in it. Also triggers when the user says "init jira", "setup jira", or "create jira config" to initialize a new `.jira.json` config file.
+name: jira-bugfix-planner
+description: Fetches a Jira ticket, summarizes the issue in plain language, researches the relevant codebase, and produces an implementation plan for the fix. Use this skill whenever the user asks to "check a ticket", "summarize a Jira issue", "investigate a bug from Jira", "plan a fix for ticket X", "look at ACME-XXXX", or any request that involves reading a Jira ticket and producing actionable engineering output. Also trigger when the user pastes a Jira URL or mentions a ticket key like ACME-1234, PROJ-456, etc. and wants to understand or fix the issue described in it. Also triggers when the user says "init jira", "setup jira", or "create jira config" to initialize a new `.jira.json` config file via jira-config-init.
 ---
 
-# Jira Ticket Planner
+# Jira Bugfix Planner
 
 Fetch a Jira ticket, distill it into a clear summary, research the affected code, and produce an implementation plan — all in one pass.
 
@@ -53,7 +53,7 @@ cat .jira.json 2>/dev/null || echo "NOT_FOUND"
 
 - **If found:** parse `cloudId`, `defaultProject`, and `displayName` from it. Silently proceed.
 - **If not found:** inform the user:
-  > No `.jira.json` found in the current directory. You can run **"init jira"** to create one, or provide the Atlassian site URL now (e.g. `acme.atlassian.net`).
+  > No `.jira.json` found in the current directory. You can run **"jira-config-init"** to create one, or provide the Atlassian site URL now (e.g. `acme.atlassian.net`).
 
   If the user provides the `cloudId` inline (e.g. from a pasted URL), use it for this session only — do not create a config file unless asked.
 

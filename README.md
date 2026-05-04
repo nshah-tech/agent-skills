@@ -20,9 +20,10 @@ These skills generally trigger **automatically** during conversational developme
 
 ### 🔌 Integrations
 - **`bruno-cli`** & **`bruno-docs`**: Automates API testing and collection management using Bruno, keeping REST API endpoints organized, documented, and tested.
-- **`jira-init`**: One-off initialization of Jira workspace configurations.
-- **`jira-ticket-planner`**: Fetches Jira tickets, explains issues, researches code, and automatically generates implementation plans for fixes.
-- **`jira-bug-report`**: Automates creating robust bug reports directly in Jira from local debug sessions.
+- **`jira-config-init`**: One-off initialization of Jira workspace configurations.
+- **`jira-bugfix-planner`**: Fetches Jira tickets, explains issues, researches code, and automatically generates implementation plans for bug fixes and small tasks.
+- **`jira-feature-architect`**: Strategic feature designer. Fetches Jira tickets, researches codebase, and produces persistent technical proposal documents and progress trackers in the documentation repository.
+- **`jira-bug-reporter`**: Automates creating robust bug reports directly in Jira from local debug sessions.
 
 ---
 
