@@ -18,12 +18,20 @@ These skills generally trigger **automatically** during conversational developme
 - **`todo-manager`**: Automatically captures and manages tasks, ideas, or tech debt in the project's TODO list.
 - **`skill-creator`**: Develops, refines, evaluates, and optimizes other AI agent skills!
 
-### 🔌 Integrations
-- **`bruno-cli`** & **`bruno-docs`**: Automates API testing and collection management using Bruno, keeping REST API endpoints organized, documented, and tested.
-- **`jira-config-init`**: One-off initialization of Jira workspace configurations.
-- **`jira-bugfix-planner`**: Fetches Jira tickets, explains issues, researches code, and automatically generates implementation plans for bug fixes and small tasks.
-- **`jira-feature-architect`**: Strategic feature designer. Fetches Jira tickets, researches codebase, and produces persistent technical proposal documents and progress trackers in the documentation repository.
+### 🔌 Integrations & Jira Automation Workflow
+A fully autonomous, multi-agent pipeline for executing Jira sprints end-to-end:
+- **`sprint-manager`**: Initializes and updates markdown-based sprint dashboards (`vX.X.X.md`) from Jira data.
+- **`jira-config-init`**: Interactively creates your `.jira.json` workspace configuration.
+- **`jira-feature-architect`**: Strategic feature designer. Deeply researches the codebase to produce comprehensive Technical Proposal documents.
+- **`review-proposal`**: Orchestrates a 4-lens review gauntlet (Idea, Architecture, Design, QA) for drafted proposals.
+- **`generate-progress-report`**: Translates approved proposals into atomic, 2-to-5-minute execution tasks (`PROGRESS.md`).
+- **`task-executor`**: Autonomously reads project branching strategies, executes tasks from `PROGRESS.md`, commits, and opens Pull Requests.
+- **`product-doc-generator`**: Translates completed technical proposals into user-facing product documentation (wikis).
+- **`workflow-status`**: Acts as a dashboard, scanning sprint documents and providing actionable next steps.
+- **`incident-reporter`**: Generates Incident Reports and Architecture Decision Records (ADRs) post-bugfix.
+- **`jira-bugfix-planner`**: Fetches Jira tickets, explains issues, and automatically generates lightweight implementation plans for bugs.
 - **`jira-bug-reporter`**: Automates creating robust bug reports directly in Jira from local debug sessions.
+- **`bruno-cli`** & **`bruno-docs`**: Automates API testing and collection management using Bruno, keeping REST API endpoints organized.
 
 ---
 

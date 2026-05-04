@@ -1,11 +1,11 @@
 ---
 name: jira-feature-architect
-description: Fetches a Jira ticket, researches the relevant codebase, and produces a detailed feature proposal document with a companion progress tracker — all saved to the S2Q Documentation repository. Use this skill whenever the user asks to "create a proposal", "write a feature proposal", "proposal for ticket X", "plan a feature for ACME-XXXX", "design doc for this ticket", or any request that involves reading a Jira ticket and producing a structured technical proposal document (not an implementation plan). Also trigger when the user says "propose", "feature doc", "write up a proposal", "proposal doc", or explicitly invokes "/jira-feature-architect". This skill produces TWO files: a Proposal doc and a Progress tracker, both written to the documentation repository.
+description: Fetches a Jira ticket, researches the relevant codebase, and produces a detailed feature proposal document saved to the ACME Documentation repository. Use this skill whenever the user asks to "create a proposal", "write a feature proposal", "proposal for ticket X", "plan a feature for ACME-XXXX", "design doc for this ticket", or any request that involves reading a Jira ticket and producing a structured technical proposal document (not an implementation plan). Also trigger when the user says "propose", "feature doc", "write up a proposal", "proposal doc", or explicitly invokes "/jira-feature-architect". This skill produces ONE file: a Proposal doc written to the documentation repository.
 ---
 
 # Jira Feature Architect
 
-Fetch a Jira ticket, distill it into a clear summary, deeply research the affected codebase, and produce a **technical proposal document** with a companion **progress tracker** — saved to the S2Q Documentation repository under `Sprints/<version>/`.
+Fetch a Jira ticket, distill it into a clear summary, deeply research the affected codebase, and produce a **technical proposal document** — saved to the ACME Documentation repository under `Sprints/<version>/`.
 
 ## When to Use
 
@@ -42,26 +42,24 @@ This skill reads workspace configuration from a `.jira.json` file at the **root 
 
 ## Output Structure
 
-This skill produces files in the `documentation` repository (which is its own standalone repo). Locate the documentation repo root by checking the user's workspace URIs — it will be the workspace mapped to `SpeedToQuote/documentation` or similar.
+This skill produces files in the `documentation` repository (which is its own standalone repo). Locate the documentation repo root by checking the user's workspace URIs — it will be the workspace mapped to `<ProjectName>/documentation` or similar.
 
-Proposals live **inside their sprint folder**. The skill produces **two files** per proposal, and updates the shared **tags index** at the repo root:
+Proposals live **inside their sprint folder**. The skill produces **one file** per proposal, and updates the shared **tags index** at the repo root:
 
 ```
 tags.md                                  ← Tag index (root-level, shared across all docs)
 Sprints/
 └── v2.16.0/
     └── <TICKET_KEY>-<ShortName>/
-        ├── <TICKET_KEY>-<ShortName>.md   ← Technical Proposal
-        └── <TICKET_KEY>-PROGRESS.md      ← Progress Tracker
+        └── <TICKET_KEY>-<ShortName>.md   ← Technical Proposal
 ```
 
-**Example**: For ticket `S2Q-1849` about "Historical Rate Matrix" in sprint v2.15.0:
+**Example**: For ticket `ACME-1849` about "Historical Rate Matrix" in sprint v2.15.0:
 ```
 Sprints/
 └── v2.15.0/
-    └── S2Q-1849-HistoricalRateMatrix/
-        ├── S2Q-1849-HistoricalRateMatrix.md
-        └── S2Q-1849-PROGRESS.md
+    └── ACME-1849-HistoricalRateMatrix/
+        └── ACME-1849-HistoricalRateMatrix.md
 ```
 
 **Naming rules**:
@@ -83,7 +81,7 @@ Every proposal uses **Obsidian-style tags** for cross-proposal discovery. Tags a
 Add a tag line immediately after the `# Proposal:` title in every proposal document:
 
 ```markdown
-# Proposal: S2Q-1849: Historical Rate Matrix (Technical Proposal)
+# Proposal: ACME-1849: Historical Rate Matrix (Technical Proposal)
 
 #Historical #RFP #PowerLane #RateMatrix #PricingStrategy #Microservice #SQS
 ```
@@ -97,7 +95,7 @@ Add a tag line immediately after the `# Proposal:` title in every proposal docum
 | Category | Example Tags |
 |---|---|
 | **Entity** | `#PowerLane`, `#RFP`, `#Historical`, `#Zone`, `#ZipCode` |
-| **Service** | `#Microservice`, `#S2QService`, `#DistanceService` |
+| **Service** | `#Microservice`, `#ACMEService`, `#DistanceService` |
 | **UI Area** | `#PricingStrategy`, `#Dashboard`, `#ImportWizard`, `#ZoneManagement` |
 | **Feature** | `#RateMatrix`, `#MexicoSupport`, `#BulkGenerate`, `#Upload` |
 | **Infrastructure** | `#SQS`, `#Migration`, `#Cron`, `#S3` |
@@ -172,8 +170,8 @@ If overlap is found, add a section to the new proposal:
 
 | Proposal | Shared Tags | Overlap | Risk |
 |---|---|---|---|
-| S2Q-1823-MexicoSupport | #ZipCode #Zone | Both modify `zip.ts` and `location.ts` | Merge conflict on location pipeline |
-| S2Q-1849-HistoricalRateMatrix | #PowerLane | Shares `PowerLaneEntity` | Schema migration ordering |
+| ACME-1823-MexicoSupport | #ZipCode #Zone | Both modify `zip.ts` and `location.ts` | Merge conflict on location pipeline |
+| ACME-1849-HistoricalRateMatrix | #PowerLane | Shares `PowerLaneEntity` | Schema migration ordering |
 ```
 
 **Skip this step** only if `tags.md` doesn't exist and the `Sprints/` directory has no proposal subfolders.
@@ -225,8 +223,8 @@ After fetching the main ticket, automatically fetch ALL linked issues to gather 
 
 | Ticket | Type | Relationship | Key Context |
 |---|---|---|---|
-| [S2Q-2020](link) | Subtask | Subtask of S2Q-1823 | Adds 2-letter MX state aliases, processing toggle |
-| [S2Q-2036](link) | Subtask | Subtask of S2Q-1823 | Border crossing, multi-leg distance, DAT toggle |
+| [ACME-2020](link) | Subtask | Subtask of ACME-1823 | Adds 2-letter MX state aliases, processing toggle |
+| [ACME-2036](link) | Subtask | Subtask of ACME-1823 | Border crossing, multi-leg distance, DAT toggle |
 ```
 
 **Performance note**: Fetch linked tickets in parallel where possible. If there are more than 10 linked tickets, fetch only the first 10 and note the remainder.
@@ -253,8 +251,8 @@ After fetching the ticket and linked tickets, analyze any attachments that could
    - Test data that can be used for acceptance criteria
 
 4. **Reference in the proposal** — Cite attachments by filename:
-   > Data structure derived from `MexicoAliasList.csv` (attached to S2Q-2020).
-   > UI layout based on `S2Q Mexico UI walk through.pptx` (attached to S2Q-2036, Slides 2–7).
+   > Data structure derived from `MexicoAliasList.csv` (attached to ACME-2020).
+   > UI layout based on `ACME Mexico UI walk through.pptx` (attached to ACME-2036, Slides 2–7).
 
 **Skip this step** if the ticket has no attachments, or if all attachments are screenshots of the bug itself (not design artifacts).
 
@@ -292,14 +290,14 @@ After summarizing, classify the feature's scope to determine which template vari
 | UI changes | None or minor tweak | New page, tab, or component |
 | Estimated tasks | < 10 | 10+ |
 
-**LITE template** — For focused, single-system changes (e.g., S2Q-1946 UploadHeartbeat):
+**LITE template** — For focused, single-system changes (e.g., ACME-1946 UploadHeartbeat):
 - Collapse UI/UX Design to a single paragraph (or "backend-only" note)
 - Collapse Technical Architecture to a data flow summary (no ASCII diagram required)
 - Edge Cases: 2–4 entries minimum (vs 6+ for FULL)
 - Fewer implementation phases (typically 2–3)
 - No Related Proposals section (unless overlap found in Step 2a)
 
-**FULL template** — For cross-cutting, multi-system features (e.g., S2Q-1823 MexicoSupport):
+**FULL template** — For cross-cutting, multi-system features (e.g., ACME-1823 MexicoSupport):
 - All ★ mandatory sections expanded with full detail
 - ASCII diagrams for both UI layout and system architecture
 - Edge Cases: 6+ entries covering all categories
@@ -484,7 +482,7 @@ Define each new entity with columns, types, constraints, and indexes:
 ### New Components Required
 | Component | Location | Description |
 |---|---|---|
-| `NewEntity` | S2QService | Tracks X |
+| `NewEntity` | ACMEService | Tracks X |
 | `NewWorker` | Microservice | Processes Y |
 | `NewComponent` | WebUI | Displays Z |
 
@@ -502,7 +500,7 @@ Define each new entity with columns, types, constraints, and indexes:
 ### Available Agent Workflows
 | Workflow | Repo | Description | When to Use |
 |---|---|---|---|
-| `/generate-migration` | S2QService | Generate TypeORM migrations | After entity changes |
+| `/generate-migration` | ACMEService | Generate TypeORM migrations | After entity changes |
 
 ### Constraints (DO NOT)
 - **DO NOT** create files in new directories unless specified.
@@ -634,78 +632,28 @@ Define each new entity with columns, types, constraints, and indexes:
 - Edge Cases must cover at least: data conflicts, null handling, backward compatibility, and UI empty states
 - Revision History must be updated every time the proposal is modified
 
-### Step 7. Create the Progress Tracker
+### Step 7. Update Sprint Doc Status
 
-Write the progress tracker alongside the proposal:
-
-```markdown
-# <TICKET_KEY>: <Feature Name> — Implementation Progress
-
-> [!IMPORTANT]
-> **AGENT INSTRUCTIONS**: 
-> 1. This is your **source of truth for state**. 
-> 2. At the **START** of every session: Read this file to see what was finished.
-> 3. During work: Mark items as `[/]` (in-progress) as you start them.
-> 4. At the **END** of every session (or after every major task): Mark items as `[x]` (completed) and update the "Current Session Summary" below.
-> 5. **NEVER** delete tasks from this list. Use it to maintain context across days.
-> 6. **READ** the proposal document `<TICKET_KEY>-<ShortName>.md` for full technical details on each task.
-
----
-
-## Progress at a Glance (Update this!)
-- **Status**: Planning Complete — Ready for Implementation
-- **Current Phase**: Phase 1: <First Phase Name>
-- **Feature Completion**: 0%
-- **Last Updated**: <today's date YYYY-MM-DD>
-- **Open Questions**: <list of open question numbers from proposal>
-- **Reference Tickets**: [<TICKET_KEY>](https://<cloudId>/browse/<TICKET_KEY>)
-
----
-
-## Implementation Checklist
-
-> **Note**: Mirror ALL tasks from the proposal's Implementation TODO section exactly. Ensure they are atomic and bite-sized.
-
-### Phase 1: <Phase Name>
-- [ ] **1.1** Write failing unit test for `POST /power-lane` in `powerLane.controller.spec.ts`.
-- [ ] **1.2** Define `PowerLaneDto` with validation decorators.
-- [ ] **1.3** Implement `PowerLaneService.create` to make the test pass.
-
-### Phase 2: <Phase Name>
-- [ ] **2.1** <Task description>.
-
-(Mirror ALL tasks from the proposal's Implementation TODO section)
-
-### Phase N: Testing & Verification
-- [ ] **N.1** <Test task>.
-
----
-
-## Work Log & Session Summaries
-
-### <Today's Date YYYY-MM-DD> — Proposal Creation
-- Created technical proposal `<TICKET_KEY>-<ShortName>.md` covering <brief scope>.
-- Analyzed existing codebase: <list key files/entities/services researched>.
-- Key findings:
-  - <Finding 1>
-  - <Finding 2>
-  - <Finding 3>
-- Proposal structured into <N> implementation phases with <M> tasks.
-- <X> open design questions flagged for discussion.
-- Created this PROGRESS.md tracker.
-```
+After generating the draft proposal, you MUST update the sprint doc to reflect the new status.
+1. Read `Sprints/<version>/<version>.md`
+2. Find the row for `<TICKET_KEY>` in the `## Tickets` table
+3. Update its Status to `📋 Planning`
+4. Update its Proposal column to link to your new file: `[[<TICKET_KEY>-<ShortName>]]`
+5. Write the file back.
 
 ### Step 8. Present to the User
 
-After creating both files:
-1. Inform the user where the files were created (with file links)
+After creating the file and updating the sprint status:
+1. Inform the user where the file was created (with file link)
 2. Highlight the **open questions** that need stakeholder input before implementation can begin
 3. Summarize the scope: number of phases, number of tasks, key technical decisions
 4. Mention any **related proposals** found in Step 2a and potential conflicts
 5. Note the **template variant** used (LITE or FULL) and why
 6. Ask if the user wants to review or adjust anything before sharing with the team
 7. **Skill Handoff**: Tell the user exactly what to do next. Output:
-   > *"Proposal saved! You can now run `/plan-eng-review` to critique the architecture, or if you are ready to build, run `/autoplan` or `/execute-approved`."*
+   > *"Proposal saved! Run `/review-proposal <TICKET_KEY>` to begin the review gauntlet."*
+8. **Session Bookmark**: Also output:
+   > *"Session complete. To resume later, run `/workflow-status <version>`."*
 
 ---
 
@@ -715,10 +663,9 @@ When the user asks to **update**, **revise**, or **add feedback** to an existing
 
 ### Update Step 1. Load the Existing Proposal
 
-Read the existing proposal and progress tracker:
+Read the existing proposal:
 ```bash
 cat Sprints/<version>/<TICKET_KEY>-<ShortName>/<TICKET_KEY>-<ShortName>.md
-cat Sprints/<version>/<TICKET_KEY>-<ShortName>/<TICKET_KEY>-PROGRESS.md
 ```
 
 ### Update Step 2. Capture the Pre-Update State
@@ -763,22 +710,12 @@ After updating, automatically generate the Revision History entry by comparing p
 | ... | ... |
 ```
 
-### Update Step 5. Sync PROGRESS.md
-
-After updating the proposal:
-1. Read the updated Implementation TODO section
-2. Compare against the current PROGRESS.md checklist
-3. **Add** any new tasks to PROGRESS.md (preserving existing `[x]` and `[/]` marks)
-4. **Never remove** completed tasks — only add new ones
-5. Update the "Progress at a Glance" section with new phase/task counts
-6. Add a Work Log entry documenting the revision
-
-### Update Step 6. Present the Diff
+### Update Step 5. Present the Diff
 
 Present a summary of what changed to the user:
 
 ```
-📝 Proposal Updated: S2Q-1823-MexicoSupport.md (Rev 2 → Rev 3)
+📝 Proposal Updated: ACME-1823-MexicoSupport.md (Rev 2 → Rev 3)
 
   +4 implementation phases (8 → 12)
   +15 tasks (42 → 57)
@@ -789,7 +726,6 @@ Present a summary of what changed to the user:
   Modified: UI/UX Design, Technical Architecture, Questions
 
   New questions requiring input: Q10, Q11, Q12
-  PROGRESS.md synced with 15 new tasks added.
 ```
 
 ---
