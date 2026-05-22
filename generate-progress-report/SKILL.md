@@ -84,7 +84,15 @@ Use this exact structure:
 - Total tasks: <N> across <M> phases.
 ```
 
-### Step 5. Handoff to User
+### Step 5. Update Sprint Deployment Checklist
+Check if the proposal introduces any of the following:
+- Changes to environment variables (`.env`)
+- Database migrations or schema changes
+- New deployment scripts or infrastructure requirements
+
+If so, open the active Sprint document (e.g., `Sprints/<version>/<version>.md`) and automatically append these requirements as checkboxes under the `## Deployment Checklist` section. This ensures deployment requirements are never lost.
+
+### Step 6. Handoff to User
 Output the following explicit message:
 > *"PROGRESS.md generated with N tasks across M phases. Run `/task-executor <TICKET_KEY>` to begin execution."*
 

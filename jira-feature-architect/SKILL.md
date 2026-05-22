@@ -638,7 +638,7 @@ After generating the draft proposal, you MUST update the sprint doc to reflect t
 1. Read `Sprints/<version>/<version>.md`
 2. Find the row for `<TICKET_KEY>` in the `## Tickets` table
 3. Update its Status to `📋 Planning`
-4. Update its Proposal column to link to your new file: `[[<TICKET_KEY>-<ShortName>]]`
+4. Update its Proposal column to link to your new file using standard markdown: `[<TICKET_KEY>-<ShortName>](<TICKET_KEY>-<ShortName>/<TICKET_KEY>-<ShortName>.md)`
 5. Write the file back.
 
 ### Step 8. Present to the User

@@ -32,17 +32,28 @@ The execution engine for the custom Jira workflow. Reads the `PROGRESS.md` gener
 2. Update the Status of `<TICKET_KEY>` to `🔨 In Progress`.
 3. Save the sprint doc.
 
-### Step 3. The Execution Loop
-Read the `PROGRESS.md` file to determine the state.
+### Step 3. Single-Phase Execution Loop
+Read the `PROGRESS.md` file to determine the active phase and state.
 
-For every unmarked `[ ]` task:
-1. **Context**: Read the corresponding phase in the Proposal document (`<TICKET_KEY>-<ShortName>.md`) to get the deep technical details, schema definitions, and AC for the task.
-2. **Work**: Implement the code. Use standard skills/tools (e.g., TypeScript refactoring, TypeORM).
-3. **Verify**: Ensure the code builds and tests pass.
-4. **Mark**: Update `PROGRESS.md` to `[/]` when starting, and `[x]` when completed.
-5. **Commit**: Make an atomic `git commit` for the task using conventional commits (e.g., `feat: ACME-1823 - implement PowerLane entity`).
+To ensure manageable, bite-sized reviewable steps, the executor MUST execute exactly ONE phase at a time.
 
-*(Note: Provide a brief summary to the user after every 1-2 completed tasks to keep them informed of progress).*
+For the first active phase containing unmarked `[ ]` tasks:
+1. **Locate Phase**: Identify the active phase in `PROGRESS.md` (e.g., Phase 1).
+2. **Execute Tasks in Phase**: For every unmarked `[ ]` task in the *current phase*:
+   a. **Context**: Read the corresponding phase/tasks in the Proposal document (`<TICKET_KEY>-<ShortName>.md`) to get the deep technical details, schema definitions, and AC for the task.
+   b. **Work**: Implement the code. Use standard skills/tools (e.g., TypeScript refactoring, TypeORM).
+   c. **Verify**: Ensure the code builds and tests pass.
+   d. **Mark**: Update `PROGRESS.md` to `[/]` when starting, and `[x]` when completed.
+   e. **Commit**: Make an atomic `git commit` for the task using conventional commits (e.g., `feat: ACME-1823 - implement PowerLane entity`).
+3. **Complete Phase & Stop for Review**: Once all tasks in the active phase are marked `[x]`, the executor MUST immediately stop execution and prompt the user for feedback.
+   - Present a git diff of the changes made during the phase.
+   - Ask the user:
+     > 🔍 **Phase Complete & Review Gate**:
+     > Phase <Phase Number> has been completed successfully. 
+     >
+     > Are there any issues or code changes you'd like me to address, or should we proceed to the next phase/task?
+4. **Wait for Approval**: Do NOT execute any tasks in subsequent phases until the user explicitly reviews and approves the current phase.
+
 
 ### Step 4. PR Creation & Sprint Status Update (PR Open)
 Once all tasks in `PROGRESS.md` are marked `[x]`:

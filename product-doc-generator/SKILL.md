@@ -29,7 +29,7 @@ Read the entire document to extract the business logic, UI changes, and feature 
 
 ### Step 3. Generate the Wiki Page
 Translate the technical proposal into a user-facing guide.
-**Location**: `Product_Docs/Features/<ShortName>.md` (create the directory if it doesn't exist).
+**Location**: `Wiki/Features/<ShortName>.md` (create the directory if it doesn't exist).
 
 **Structure**:
 ```markdown
@@ -48,12 +48,12 @@ Translate the technical proposal into a user-facing guide.
 <What happens in error states and how the user should resolve them.>
 
 ---
-*Generated from technical proposal [[<TICKET_KEY>-<ShortName>]] on <YYYY-MM-DD>.*
+*Generated from technical proposal [<TICKET_KEY>-<ShortName>](../../Sprints/<version>/<TICKET_KEY>-<ShortName>/<TICKET_KEY>-<ShortName>.md) on <YYYY-MM-DD>.*
 ```
 
 ### Step 4. Present to User
 Output the following explicit message:
-> *"Product documentation generated at `Product_Docs/Features/<ShortName>.md`. The sprint document has been updated to 📘 Wiki Done."*
+> *"Product documentation generated at `Wiki/Features/<ShortName>.md`. The sprint document has been updated to 📘 Wiki Done."*
 
 **Session Bookmark**:
 > *"Session complete. To resume later, run `/workflow-status <version>`."*

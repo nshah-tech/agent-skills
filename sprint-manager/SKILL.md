@@ -43,7 +43,7 @@ Extract for each ticket (skipping Bug types if the user chose to ignore them):
 1. Create the `Sprints/<version>/` directory if it doesn't exist.
 2. Read the template from `Sprints/_sprint-template.md` (or create a standard sprint structure with Overview, Goals, Tickets, Deployment Checklist if it doesn't exist).
 3. Populate the `## Tickets` markdown table using the fetched data.
-4. If there are matching proposal documents already in `Sprints/<version>/`, link to them in the Proposal column using `[[TICKET-ShortName]]` format.
+4. If there are matching proposal documents already in `Sprints/<version>/`, link to them in the Proposal column using standard markdown: `[TICKET-ShortName](TICKET-ShortName/TICKET-ShortName.md)` format.
 5. Update `Sprints/_index.md` (the Map of Content) to include the new sprint, if the index exists.
 
 **If UPDATE**:
