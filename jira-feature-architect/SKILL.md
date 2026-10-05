@@ -1,11 +1,11 @@
 ---
 name: jira-feature-architect
-description: Fetches a Jira ticket, researches the relevant codebase, and produces a detailed feature proposal document saved to the ACME Documentation repository. Use this skill whenever the user asks to "create a proposal", "write a feature proposal", "proposal for ticket X", "plan a feature for ACME-XXXX", "design doc for this ticket", or any request that involves reading a Jira ticket and producing a structured technical proposal document (not an implementation plan). Also trigger when the user says "propose", "feature doc", "write up a proposal", "proposal doc", or explicitly invokes "/jira-feature-architect". This skill produces ONE file: a Proposal doc written to the documentation repository.
+description: Fetches a Jira ticket, researches the relevant codebase, and produces a detailed feature proposal document saved to the project's documentation repository. Use this skill whenever the user asks to "create a proposal", "write a feature proposal", "proposal for ticket X", "plan a feature for ACME-XXXX", "design doc for this ticket", or any request that involves reading a Jira ticket and producing a structured technical proposal document (not an implementation plan). Also trigger when the user says "propose", "feature doc", "write up a proposal", "proposal doc", or explicitly invokes "/jira-feature-architect". This skill produces ONE file: a Proposal doc written to the documentation repository.
 ---
 
 # Jira Feature Architect
 
-Fetch a Jira ticket, distill it into a clear summary, deeply research the affected codebase, and produce a **technical proposal document** — saved to the ACME Documentation repository under `Sprints/<version>/`.
+Fetch a Jira ticket, distill it into a clear summary, deeply research the affected codebase, and produce a **technical proposal document** — saved to the project's documentation repository under `Sprints/<version>/`.
 
 ## When to Use
 
@@ -54,16 +54,16 @@ Sprints/
         └── <TICKET_KEY>-<ShortName>.md   ← Technical Proposal
 ```
 
-**Example**: For ticket `ACME-1849` about "Historical Rate Matrix" in sprint v2.15.0:
+**Example**: For ticket `ACME-1849` about "Recurring Invoices" in sprint v2.15.0:
 ```
 Sprints/
 └── v2.15.0/
-    └── ACME-1849-HistoricalRateMatrix/
-        └── ACME-1849-HistoricalRateMatrix.md
+    └── ACME-1849-RecurringInvoices/
+        └── ACME-1849-RecurringInvoices.md
 ```
 
 **Naming rules**:
-- `<ShortName>` is a PascalCase slug derived from the ticket summary (e.g., `MexicoSupport`, `HistoricalRateMatrix`, `UploadHeartbeat`). Keep it concise — 1–3 words.
+- `<ShortName>` is a PascalCase slug derived from the ticket summary (e.g., `MultiCurrency`, `RecurringInvoices`, `UploadHeartbeat`). Keep it concise — 1–3 words.
 - The folder name combines the ticket key and short name.
 - Use relative paths from the documentation repo root (e.g., `Sprints/<version>/<TICKET_KEY>-<ShortName>/`).
 
@@ -81,23 +81,23 @@ Every proposal uses **Obsidian-style tags** for cross-proposal discovery. Tags a
 Add a tag line immediately after the `# Proposal:` title in every proposal document:
 
 ```markdown
-# Proposal: ACME-1849: Historical Rate Matrix (Technical Proposal)
+# Proposal: ACME-1849: Recurring Invoices (Technical Proposal)
 
-#Historical #RFP #PowerLane #RateMatrix #PricingStrategy #Microservice #SQS
+#Invoice #Order #Subscription #RecurringBilling #BillingSettings #Worker #SQS
 ```
 
 **Tag naming rules**:
-- Use `#PascalCase` — one word per tag, no spaces (e.g., `#PowerLane`, not `#Power Lane`)
+- Use `#PascalCase` — one word per tag, no spaces (e.g., `#RecurringBilling`, not `#Recurring Billing`)
 - Include tags for: affected entities, services, UI areas, feature domains, and infrastructure
 - Aim for 4–8 tags per proposal
 - Common tag categories:
 
 | Category | Example Tags |
 |---|---|
-| **Entity** | `#PowerLane`, `#RFP`, `#Historical`, `#Zone`, `#ZipCode` |
-| **Service** | `#Microservice`, `#ACMEService`, `#DistanceService` |
-| **UI Area** | `#PricingStrategy`, `#Dashboard`, `#ImportWizard`, `#ZoneManagement` |
-| **Feature** | `#RateMatrix`, `#MexicoSupport`, `#BulkGenerate`, `#Upload` |
+| **Entity** | `#Invoice`, `#Order`, `#Customer`, `#Region`, `#PostalCode` |
+| **Service** | `#Worker`, `#ApiService`, `#TaxService` |
+| **UI Area** | `#BillingSettings`, `#Dashboard`, `#ImportWizard`, `#RegionManagement` |
+| **Feature** | `#RecurringBilling`, `#MultiCurrency`, `#BulkGenerate`, `#Upload` |
 | **Infrastructure** | `#SQS`, `#Migration`, `#Cron`, `#S3` |
 
 ### `tags.md` — Tag Index
@@ -153,7 +153,7 @@ For each overlap candidate identified in Pass 1:
 
 1. **Read the candidate proposal's tag line** (line 3 of the `.md` file) to confirm overlap.
 2. **Use `grep_search`** on the candidate proposal for:
-   - Entity names mentioned in the new ticket (e.g., `PowerLaneEntity`, `RfpEntity`)
+   - Entity names mentioned in the new ticket (e.g., `InvoiceEntity`, `OrderEntity`)
    - Shared file paths that both proposals might modify
    - The new ticket key itself (it may already be referenced)
 3. **Read the candidate's Implementation TODO** to understand what's in-flight if overlap is significant.
@@ -166,12 +166,12 @@ If overlap is found, add a section to the new proposal:
 ## Related Proposals
 
 > Existing proposals that touch overlapping areas of the codebase.
-> Discovered via shared tags: #PowerLane, #Historical
+> Discovered via shared tags: #Invoice, #RecurringBilling
 
 | Proposal | Shared Tags | Overlap | Risk |
 |---|---|---|---|
-| ACME-1823-MexicoSupport | #ZipCode #Zone | Both modify `zip.ts` and `location.ts` | Merge conflict on location pipeline |
-| ACME-1849-HistoricalRateMatrix | #PowerLane | Shares `PowerLaneEntity` | Schema migration ordering |
+| ACME-1823-MultiCurrency | #Region #PostalCode | Both modify `tax.ts` and `address.ts` | Merge conflict on address pipeline |
+| ACME-1849-RecurringInvoices | #Invoice | Shares `InvoiceEntity` | Schema migration ordering |
 ```
 
 **Skip this step** only if `tags.md` doesn't exist and the `Sprints/` directory has no proposal subfolders.
@@ -223,8 +223,8 @@ After fetching the main ticket, automatically fetch ALL linked issues to gather 
 
 | Ticket | Type | Relationship | Key Context |
 |---|---|---|---|
-| [ACME-2020](link) | Subtask | Subtask of ACME-1823 | Adds 2-letter MX state aliases, processing toggle |
-| [ACME-2036](link) | Subtask | Subtask of ACME-1823 | Border crossing, multi-leg distance, DAT toggle |
+| [ACME-2020](link) | Subtask | Subtask of ACME-1823 | Adds ISO currency aliases, conversion toggle |
+| [ACME-2036](link) | Subtask | Subtask of ACME-1823 | Exchange-rate source, rounding rules, display toggle |
 ```
 
 **Performance note**: Fetch linked tickets in parallel where possible. If there are more than 10 linked tickets, fetch only the first 10 and note the remainder.
@@ -234,7 +234,7 @@ After fetching the main ticket, automatically fetch ALL linked issues to gather 
 After fetching the ticket and linked tickets, analyze any attachments that could inform the proposal:
 
 1. **Identify relevant attachments** from the main ticket and linked tickets. Look for:
-   - **CSV files** — Data samples, mapping files, test data (e.g., `MexicoAliasList.csv`)
+   - **CSV files** — Data samples, mapping files, test data (e.g., `CurrencyAliasList.csv`)
    - **PPTX / PDF files** — UI walkthroughs, stakeholder presentations, design mockups
    - **Images** — Screenshots, wireframes, error screenshots
    - **Code snippets** — Patches, configuration files
@@ -251,8 +251,8 @@ After fetching the ticket and linked tickets, analyze any attachments that could
    - Test data that can be used for acceptance criteria
 
 4. **Reference in the proposal** — Cite attachments by filename:
-   > Data structure derived from `MexicoAliasList.csv` (attached to ACME-2020).
-   > UI layout based on `ACME Mexico UI walk through.pptx` (attached to ACME-2036, Slides 2–7).
+   > Data structure derived from `CurrencyAliasList.csv` (attached to ACME-2020).
+   > UI layout based on `Multi-currency UI walkthrough.pptx` (attached to ACME-2036, Slides 2–7).
 
 **Skip this step** if the ticket has no attachments, or if all attachments are screenshots of the bug itself (not design artifacts).
 
@@ -297,7 +297,7 @@ After summarizing, classify the feature's scope to determine which template vari
 - Fewer implementation phases (typically 2–3)
 - No Related Proposals section (unless overlap found in Step 2a)
 
-**FULL template** — For cross-cutting, multi-system features (e.g., ACME-1823 MexicoSupport):
+**FULL template** — For cross-cutting, multi-system features (e.g., ACME-1823 MultiCurrency):
 - All ★ mandatory sections expanded with full detail
 - ASCII diagrams for both UI layout and system architecture
 - Edge Cases: 6+ entries covering all categories
@@ -358,6 +358,20 @@ One paragraph describing the feature goal and what it enables across the platfor
 | UI changes | <None/Minor/Major — describe> | LITE / FULL |
 | Estimated tasks | <count> | LITE / FULL |
 | **Overall** | | **LITE / FULL** |
+
+### Risk Classification ★
+
+> Score every dimension. **Overall risk = the highest single dimension.** Gate depth scales with this at execution/verification time (see the project's workflow guide → risk tiers, if defined). This is separate from the LITE/FULL scope split above — a LITE task can still be High risk.
+
+| Dimension | Score (Low/Med/High) | Reason |
+|---|---|---|
+| Code surface | | One file → Low · one repo/several modules → Med · multiple repos or shared package → High |
+| Data contract | | Internal only → Low · API/DTO changed → Med · shared payload/persisted JSON/import-export shape → High |
+| UI impact | | Hidden/internal → Low · one screen → Med · grid/upload/export/bulk/core workflow → High |
+| Tenant/data risk | | No customer data → Low · reads customer/tenant data → Med · writes/migrates tenant-scoped data → High |
+| Regression history | | Stable area → Low · some bugs → Med · repeated cluster (per `Operations/KNOWN-FAILURE-MODES.md`) → High |
+
+**Overall Risk**: <Low / Medium / High>
 
 ---
 
@@ -482,9 +496,9 @@ Define each new entity with columns, types, constraints, and indexes:
 ### New Components Required
 | Component | Location | Description |
 |---|---|---|
-| `NewEntity` | ACMEService | Tracks X |
-| `NewWorker` | Microservice | Processes Y |
-| `NewComponent` | WebUI | Displays Z |
+| `NewEntity` | API service | Tracks X |
+| `NewWorker` | Worker service | Processes Y |
+| `NewComponent` | Web UI | Displays Z |
 
 ---
 
@@ -500,12 +514,27 @@ Define each new entity with columns, types, constraints, and indexes:
 ### Available Agent Workflows
 | Workflow | Repo | Description | When to Use |
 |---|---|---|---|
-| `/generate-migration` | ACMEService | Generate TypeORM migrations | After entity changes |
+| `/generate-migration` | API service | Generate TypeORM migrations | After entity changes |
 
 ### Constraints (DO NOT)
 - **DO NOT** create files in new directories unless specified.
 - **DO NOT** invent enum values.
 - (List all constraints specific to this feature)
+
+---
+
+## Workflow Contracts (conditional)
+
+> **Include a contract block for every high-risk workflow this feature touches** — skip this section if the project has no workflow-contract library. Copy the checklist **verbatim** from the docs repo's `Operations/contracts/` library and check each point — per new/changed item for per-item contracts (e.g. every point per grid column). Omitting a contract for a workflow the feature clearly touches is a `[BLOCKING]` QA-lens finding in review. If the feature touches none of the contracted workflows, write "No workflow contracts apply — feature touches none of: <list the library's contracts>."
+
+| If the feature touches… | Include contract (example library) |
+|---|---|
+| any data-grid column | `Operations/contracts/grid-column.md` — every point **per column** |
+| export column set/values | `Operations/contracts/export.md` |
+| file import/parsing | `Operations/contracts/import.md` |
+| <other high-risk domain workflow> | `Operations/contracts/<workflow>.md` |
+
+Each checked contract point becomes its own atomic task in `PROGRESS.md` (see `generate-progress-report`).
 
 ---
 
@@ -515,10 +544,10 @@ Define each new entity with columns, types, constraints, and indexes:
 > Complete each task in order. Each task references exact files and acceptance criteria (AC).
 
 ### Phase 1: <Phase Name>
-- [ ] **1.1** Write failing unit test for `POST /power-lane` in `powerLane.controller.spec.ts`.
+- [ ] **1.1** Write failing unit test for `POST /invoices` in `invoice.controller.spec.ts`.
   - **AC**: Test correctly verifies that missing `Customer` returns 400.
-- [ ] **1.2** Define `PowerLaneDto` with validation decorators.
-- [ ] **1.3** Implement `PowerLaneService.create` to make the test pass.
+- [ ] **1.2** Define `InvoiceDto` with validation decorators.
+- [ ] **1.3** Implement `InvoiceService.create` to make the test pass.
 
 ### Phase 2: <Phase Name>
 - [ ] **2.1** <Task description>.
@@ -526,13 +555,21 @@ Define each new entity with columns, types, constraints, and indexes:
 (Continue for all phases: Backend entities/migrations, API endpoints, business logic, frontend, testing)
 
 ### Phase N: Testing & Verification
-#### NA. Unit Tests
-- [ ] **N.1** <Test description with exact test cases>.
-  - **AC**: <What must pass>.
+> **Unit tests first.** Every logic change gets a unit test, and unit tests are written *inside* the phase that changes the code (like task 1.1 above), not deferred here. If the logic is inline in a React component, the task is "extract it into a pure `*Utils.ts` / `*.utils.ts` function, then test it". NA is required; NB only applies to backend work that truly needs a real database; NC only when the proposal explicitly justifies it.
 
-#### NB. Integration & E2E
-- [ ] **N.X** Run `/e2e` workflow.
-- [ ] **N.Y** Run `/update-docs` workflows.
+#### NA. Unit Tests (required)
+- [ ] **N.1** <Test description with exact test cases> in `<file>.spec.ts` / `<file>.test.ts`.
+  - **AC**: <What must pass>. Run scoped with each repo's documented single-file test command (e.g. `npx jest <file>`) — never an unscoped suite.
+- [ ] **N.2** (Frontend) Extract `<inline component logic>` from `<Component>.tsx` into `<Component>.utils.ts` and unit-test it.
+
+#### NB. Integration (backend only, if a real DB is genuinely required)
+- [ ] **N.X** Run the backend's integration suite **once, as the ticket's final step**, against a local disposable test database only — never per task or per phase, never a shared database.
+
+#### NC. E2E smoke (only if justified)
+- [ ] **N.Y** <Why this can't be proven by a unit test>. Add/adjust a **read-only** smoke test in the frontend's E2E folder, run the smoke suite once. E2E tests must never write to shared dev/staging data.
+
+#### ND. Docs
+- [ ] **N.Z** Run `/update-docs` workflows.
 
 ---
 
@@ -715,7 +752,7 @@ After updating, automatically generate the Revision History entry by comparing p
 Present a summary of what changed to the user:
 
 ```
-📝 Proposal Updated: ACME-1823-MexicoSupport.md (Rev 2 → Rev 3)
+📝 Proposal Updated: ACME-1823-MultiCurrency.md (Rev 2 → Rev 3)
 
   +4 implementation phases (8 → 12)
   +15 tasks (42 → 57)
@@ -734,7 +771,7 @@ Present a summary of what changed to the user:
 
 - **Don't rush the code research.** A shallow proposal that misses integration points wastes more time than spending an extra minute reading code. Read at least 3–5 files.
 - **Call out missing information early.** If the ticket is vague about requirements, list explicit questions in the Questions section.
-- **Link to specific code.** Use file links with line numbers (e.g. `[powerLane.ts:L69](file:///path/to/file#L69)`) so the proposal is immediately actionable.
+- **Link to specific code.** Use file links with line numbers (e.g. `[invoice.service.ts:L69](file:///path/to/file#L69)`) so the proposal is immediately actionable.
 - **Follow existing patterns.** Reference how similar features were built. Include "Reference Files" tables pointing to exact patterns to follow.
 - **Make tasks atomic.** Each task in the Implementation TODO should be completable in one session. If a task feels too large, split it.
 - **Include test cases.** Enumerate edge cases with expected inputs/outputs in the proposal. These become the verification criteria.

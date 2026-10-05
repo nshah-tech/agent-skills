@@ -39,19 +39,26 @@ Extract for each ticket (skipping Bug types if the user chose to ignore them):
 ### Step 3. Init or Update Sprint Doc
 **Location**: `Sprints/<version>/<version>.md`
 
+Features, bugs, and hotfixes are tracked in **separate tables** so the post-ship doc sync can find behavior-changing changes:
+- `## Tickets` — Story/Task feature tickets.
+- `## Bug Fixes` — Bug tickets shipped through the version branch. Columns: `Key | Summary | Impact | Status | Plan`. **Impact** is `behavior` (user-visible change → needs a Wiki update at ship) or `internal`. Plan links to `bugs/<TICKET>-<ShortName>.md`.
+- `## Hotfixes` — fixes pushed **directly to prod** (out-of-band from the version branch). Columns: `Key | Summary | Impact | Prod Deploy | Verified (staging)? | Back-merged? | Wiki synced?`. Plan links to `hotfixes/<TICKET>-<ShortName>.md`. **Verified (staging)?**, **Back-merged?**, and **Wiki synced?** default to ❌ until confirmed done (hotfixes are verified on staging *before* the prod push — see the project's workflow guide, if it has one).
+
 **If INIT**:
 1. Create the `Sprints/<version>/` directory if it doesn't exist.
-2. Read the template from `Sprints/_sprint-template.md` (or create a standard sprint structure with Overview, Goals, Tickets, Deployment Checklist if it doesn't exist).
-3. Populate the `## Tickets` markdown table using the fetched data.
-4. If there are matching proposal documents already in `Sprints/<version>/`, link to them in the Proposal column using standard markdown: `[TICKET-ShortName](TICKET-ShortName/TICKET-ShortName.md)` format.
+2. Read the template from `Sprints/_sprint-template.md` (or create a standard sprint structure with Overview, Goals, Tickets, **Bug Fixes**, **Hotfixes**, Deployment Checklist if it doesn't exist). The status legend must include `🧪 Verifying` (execution done + evidence recorded, awaiting the Step 6 `/verify-implementation` audit) between `🏗️ Executing`/`🔨 In Progress` and `🔀 PR Open`.
+3. Populate the `## Tickets` table with Story/Task tickets and the `## Bug Fixes` table with Bug tickets. Default new bugs' Impact to `behavior` unless clearly internal — the user can adjust. Leave `## Hotfixes` empty at init (rows are added by `/jira-bugfix-planner` when a fix is flagged as a direct-to-prod hotfix).
+4. If there are matching proposal documents already in `Sprints/<version>/` (or bug plans in `Sprints/<version>/bugs/`), link to them using standard markdown.
 5. Update `Sprints/_index.md` (the Map of Content) to include the new sprint, if the index exists.
+6. **Carry forward the regression matrix**: if the project keeps a `REGRESSION-MATRIX.md` (one row per user workflow), copy the previous sprint's to `Sprints/<version>/REGRESSION-MATRIX.md`, resetting the `Claimed by` column to `_unclaimed_` (the workflow rows are stable and carried forward; the claims are per-sprint). If the project has none, skip this step. The `## Release Hardening` section comes from `_sprint-template.md`.
+7. **Scope advisory (advisory, not a cap)**: count the sprint's flagship features (new-feature epics/stories, not tasks/bugs). If **more than 2**, add a note under `## Goals`: *"⚠️ N flagship features integrate in this release — several large features landing together is the usual source of feature-interaction bugs; consider flags or staggered releases."* This is advisory only — the dev controls the code, not which tickets land in a sprint. Never block on it.
 
 **If UPDATE**:
 1. Read the existing `Sprints/<version>/<version>.md` document.
-2. Replace the rows in the `## Tickets` table with the fresh data from Jira. **MANDATORY**: Preserve existing Proposal links if they were manually added previously.
+2. Refresh the `## Tickets`, `## Bug Fixes`, and `## Hotfixes` tables from Jira. **MANDATORY**: preserve existing Proposal/Plan links, the Impact classification, and the Hotfix `Back-merged?` / `Wiki synced?` states if they were set previously — never reset them to ❌ on refresh.
 
 ### Step 4. Present to User
 - Provide an absolute file link to the created/updated sprint document.
-- Summarize the sprint: *"Fetched N tickets (X Stories, Y Bugs)."*
+- Summarize the sprint: *"Fetched N tickets (X Stories, Y Bugs — Z marked behavior-changing)."*
 - **Handoff / Session Bookmark**: Output the following explicitly: 
   > *"Session complete. To begin planning a feature, run `/jira-feature-architect <TICKET>`. To resume later, run `/workflow-status <version>`."*

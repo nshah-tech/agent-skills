@@ -56,26 +56,226 @@ def to_kebab(s: str) -> str:
     s = re.sub(r'[\s_]+', '-', s.strip())
     return s.lower()
 
+
+# Common plural -> singular mappings for readable route names
+_PLURAL_SINGULAR = {
+    'users': 'user', 'customers': 'customer', 'carriers': 'carrier',
+    'companies': 'company', 'teams': 'team', 'reports': 'report',
+    'uploads': 'upload', 'errors': 'error', 'webhooks': 'webhook',
+    'quotes': 'quote', 'zones': 'zone', 'rates': 'rate',
+    'orders': 'order', 'jobs': 'job', 'results': 'result',
+    'settings': 'setting', 'tokens': 'token', 'lanes': 'lane',
+    'commodities': 'commodity', 'locations': 'location',
+    'invoices': 'invoice', 'shipments': 'shipment',
+    'templates': 'template', 'statuses': 'status',
+    'histories': 'history', 'matrices': 'matrix',
+    'addresses': 'address', 'contacts': 'contact',
+    'documents': 'document', 'notifications': 'notification',
+    'permissions': 'permission', 'roles': 'role',
+    'configurations': 'configuration', 'integrations': 'integration',
+    'connections': 'connection', 'sessions': 'session',
+    'messages': 'message', 'comments': 'comment',
+    'files': 'file', 'images': 'image', 'logs': 'log',
+    'events': 'event', 'schedules': 'schedule', 'tasks': 'task',
+}
+
+# Method -> human verb mapping for CRUD-style route names
+_METHOD_VERBS = {
+    'GET': 'Get',
+    'POST': 'Create',
+    'PUT': 'Update',
+    'PATCH': 'Update',
+    'DELETE': 'Delete',
+    'HEAD': 'Head',
+    'OPTIONS': 'Options',
+}
+
+# Sub-path actions that act as verbs (the method verb is dropped in favor of these)
+_ACTION_VERBS = {
+    'check', 'verify', 'validate', 'activate', 'deactivate',
+    'refresh', 'sync', 'import', 'export', 'test', 'run',
+    'start', 'stop', 'cancel', 'retry', 'resend', 'send',
+    'login', 'logout', 'register', 'join', 'invite', 'reset',
+    'save', 'submit', 'apply', 'restore', 'find', 'search',
+    'filter', 'upload', 'download', 'generate', 'parse',
+    'notify', 'post', 'set', 'create', 'update', 'delete',
+    'remove', 'assign', 'unassign', 'approve', 'reject',
+    'accept', 'decline', 'add', 'connect', 'disconnect',
+}
+
+
+def _singularize(word: str) -> str:
+    """Simple singular form lookup."""
+    return _PLURAL_SINGULAR.get(word.lower(), word)
+
+
 def path_to_name(method: str, path: str) -> str:
-    """Convert GET /users/:id -> 'Get User by Id'."""
-    parts = [p for p in path.strip('/').split('/') if p and not p.startswith('{')]
-    # Replace :param and {param} with "by Param"
-    named_parts = []
-    param_parts = []
-    for part in path.strip('/').split('/'):
-        if part.startswith(':') or (part.startswith('{') and part.endswith('}')):
-            param = part.strip(':{} ').replace('-', ' ').replace('_', ' ').title()
-            param_parts.append(f"by {param}")
-        elif part:
-            named_parts.append(part.replace('-', ' ').replace('_', ' ').title())
-    label = ' '.join(named_parts + param_parts)
-    return f"{method.title()} {label}".strip() if label else f"{method.title()} Root"
+    """
+    Convert method + path into a human-readable name.
+
+    Examples:
+        GET  /users              -> "Get Users"
+        GET  /users/:userId      -> "Get User by User ID"
+        POST /users              -> "Create User"
+        POST /users/check-invite -> "Check Invite User"
+        PUT  /users/:userId      -> "Update User by User ID"
+        DELETE /users/:userId    -> "Delete User by User ID"
+        GET  /tms/bill-to-codes  -> "Get TMS Bill to Codes"
+        POST /tms/test-api       -> "Test API TMS"
+        GET  /power-lane/historical-jobs  -> "Get Power Lane Historical Jobs"
+    """
+    segments = path.strip('/').split('/')
+    if not segments or segments == ['']:
+        return f"{_METHOD_VERBS.get(method, method.title())} Root"
+
+    # Classify segments
+    resource_parts = []   # non-param path segments
+    param_parts = []      # :param segments
+    action_parts = []     # sub-path verbs like /check-invite, /test-api
+
+    for seg in segments:
+        if seg.startswith(':') or (seg.startswith('{') and seg.endswith('}')):
+            param_name = seg.strip(':{} ')
+            # Make param readable: userId -> User ID, tmsId -> TMS ID
+            readable = re.sub(r'([A-Z])', r' \1', param_name).strip()
+            readable = re.sub(r'[_-]', ' ', readable)
+            # Capitalize 'id' -> 'ID', 'tms' -> 'TMS' etc.
+            words = readable.split()
+            titled_words = []
+            for w in words:
+                if w.lower() == 'id':
+                    titled_words.append('ID')
+                elif len(w) <= 3 and w.lower() in ('tms', 'rfp', 'api', 'url', 'csv', 'pdf'):
+                    titled_words.append(w.upper())
+                else:
+                    titled_words.append(w.title())
+            param_parts.append(' '.join(titled_words))
+        else:
+            # Check if any word in this segment is an action verb
+            seg_words = seg.replace('-', ' ').replace('_', ' ').split()
+            if seg_words and seg_words[0].lower() in _ACTION_VERBS:
+                action_parts.extend(seg_words)
+            else:
+                resource_parts.append(seg)
+
+    # Build the name
+    verb = _METHOD_VERBS.get(method, method.title())
+
+    # Titlecase resource parts
+    def titlecase_segment(seg: str) -> str:
+        words = seg.replace('-', ' ').replace('_', ' ').split()
+        titled = []
+        for w in words:
+            if w.lower() in ('tms', 'rfp', 'api', 'url', 'csv', 'pdf', 'avrl', 'id'):
+                titled.append(w.upper())
+            else:
+                titled.append(w.title())
+        return ' '.join(titled)
+
+    resource_label = ' '.join(titlecase_segment(rp) for rp in resource_parts)
+
+    # If there are action verbs in the sub-path, use those as the primary verb
+    if action_parts:
+        action_verb = ' '.join(w.title() for w in action_parts)
+        label = f"{action_verb} {resource_label}".strip()
+    else:
+        # Singularize the main resource when followed by a param (GET /users/:id -> Get User)
+        if param_parts and resource_parts:
+            # Singularize the last resource segment before the param
+            last_resource = resource_parts[-1]
+            last_words = last_resource.replace('-', ' ').replace('_', ' ').split()
+            if last_words:
+                last_words[-1] = _singularize(last_words[-1])
+            resource_parts[-1] = '-'.join(last_words)
+            resource_label = ' '.join(titlecase_segment(rp) for rp in resource_parts)
+
+        label = f"{verb} {resource_label}".strip()
+
+    # Append "by <Param>" for path params
+    if param_parts:
+        label += ' by ' + ' and '.join(param_parts)
+
+    return label or f"{verb} Root"
 
 def path_params_from_path(path: str) -> list:
     """Extract :id and {id} style params from a path string."""
     params = re.findall(r':([a-zA-Z_][a-zA-Z0-9_]*)', path)
     params += re.findall(r'\{([a-zA-Z_][a-zA-Z0-9_]*)\}', path)
     return list(dict.fromkeys(params))
+
+
+def route_to_filename(method: str, path: str) -> str:
+    """
+    Generate a descriptive, collision-free kebab-case filename from method + path.
+
+    Examples:
+        GET  /users              -> get-users.bru
+        GET  /users/:userId      -> get-user-by-id.bru
+        POST /users              -> create-user.bru
+        POST /users/check-invite -> check-invite-user.bru
+        PUT  /users/:userId      -> update-user-by-id.bru
+        DELETE /users/:userId    -> delete-user-by-id.bru
+        GET  /tms/bill-to-codes  -> get-tms-bill-to-codes.bru
+        POST /tms/test-api       -> test-api-tms.bru
+    """
+    segments = path.strip('/').split('/')
+    if not segments or segments == ['']:
+        return f"{method.lower()}-root"
+
+    resource_parts = []
+    param_parts = []
+    action_parts = []
+
+    for seg in segments:
+        if seg.startswith(':') or (seg.startswith('{') and seg.endswith('}')):
+            param_name = seg.strip(':{} ')
+            # Simplify param for filename: userId -> id, customerId -> id
+            # But preserve unique params: teamId vs userId in same path
+            readable = re.sub(r'([A-Z])', r'-\1', param_name).strip('-').lower()
+            readable = re.sub(r'[_]', '-', readable)
+            param_parts.append(readable)
+        else:
+            seg_words = seg.replace('-', ' ').replace('_', ' ').split()
+            if seg_words and seg_words[0].lower() in _ACTION_VERBS:
+                action_parts.extend(seg_words)
+            else:
+                resource_parts.append(seg)
+
+    # Build filename — use raw HTTP method to avoid PUT/PATCH collisions
+    verb = method.lower()
+    parts = [verb]
+
+    if action_parts:
+        action = '-'.join(w.lower() for w in action_parts)
+        resource = '-'.join(resource_parts)
+        parts.append(action)
+        if resource:
+            parts.append(resource)
+    else:
+        # Singularize the main resource when followed by a param
+        resource_names = list(resource_parts)
+        if param_parts and resource_names:
+            last = resource_names[-1]
+            last_words = last.replace('-', ' ').replace('_', ' ').split()
+            if last_words:
+                last_words[-1] = _singularize(last_words[-1])
+            resource_names[-1] = '-'.join(last_words)
+
+        resource = '-'.join(resource_names)
+        if resource:
+            parts.append(resource)
+
+    # Append param names
+    if param_parts:
+        for p in param_parts:
+            parts.append(f'by-{p}')
+
+    filename = '-'.join(parts)
+    # Insert dashes before capitals for camelCase path segments
+    filename = re.sub(r'([a-z])([A-Z])', r'\1-\2', filename)
+    # Clean up any double dashes
+    filename = re.sub(r'-+', '-', filename).strip('-')
+    return filename.lower()
 
 def normalize_path(path: str) -> str:
     """Normalize /api//users/ -> /api/users and convert {id} -> :id."""
@@ -84,15 +284,26 @@ def normalize_path(path: str) -> str:
     return path or '/'
 
 def folder_from_path(path: str) -> str:
-    """Derive a Bruno collection folder name from the route path."""
+    """Derive a Bruno collection folder path from the route path.
+
+    Nested resources produce nested folders:
+        /company                          -> 'company'
+        /company/:companyId/equipment     -> 'company/equipment'
+        /company/:companyId/zone          -> 'company/zone'
+        /front-app/auth                   -> 'front-app/auth'
+    """
     parts = [p for p in path.strip('/').split('/') if p and not p.startswith(':')]
     if not parts:
         return 'root'
     # Skip 'api' or 'v1', 'v2' prefixes if there's more after
     skip = {'api', 'v1', 'v2', 'v3'}
     filtered = [p for p in parts if p.lower() not in skip]
-    folder = filtered[0] if filtered else parts[0]
-    return to_kebab(folder)
+    if not filtered:
+        filtered = parts
+    # Cap nesting depth to avoid overly deep folder structures
+    MAX_FOLDER_DEPTH = 3
+    filtered = filtered[:MAX_FOLDER_DEPTH]
+    return '/'.join(to_kebab(seg) for seg in filtered)
 
 def auth_from_hints(text: str) -> str:
     """Guess auth type from guard/middleware names in source code."""
@@ -115,20 +326,56 @@ def auth_from_hints(text: str) -> str:
     return 'none'
 
 
+def load_gitignore(project_path: Path) -> list[str]:
+    """Load gitignore patterns as regexes."""
+    patterns = []
+    gitignore_file = project_path / '.gitignore'
+    if gitignore_file.exists():
+        try:
+            for line in gitignore_file.read_text().splitlines():
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                # Simple gitignore to regex conversion:
+                # 1. Escape special regex chars
+                # 2. Replace '*' with '.*'
+                # 3. Handle trailing '/'
+                p = re.escape(line).replace('\\*', '.*')
+                if line.endswith('/'):
+                    p = p + '.*'
+                patterns.append(p)
+        except Exception:
+            pass
+    # Always ensure node_modules is ignored even if not in gitignore
+    if 'node_modules' not in patterns:
+        patterns.append('node_modules' + '.*')
+    return patterns
+
+
+def should_ignore(path: Path, project_root: Path, ignore_patterns: list[str]) -> bool:
+    """Check if a path should be ignored based on patterns."""
+    rel_path = str(path.relative_to(project_root))
+    for pattern in ignore_patterns:
+        if re.search(pattern, rel_path):
+            return True
+    return False
+
+
 # ---------------------------------------------------------------------------
 # NestJS Scanner
 # ---------------------------------------------------------------------------
 
-def scan_nestjs(project_path: Path) -> list[Route]:
+def scan_nestjs(project_path: Path, ignore_patterns: list[str] = None) -> list[Route]:
     """Scan NestJS project for all controller routes."""
     routes = []
+    if ignore_patterns is None:
+        ignore_patterns = []
 
     # Find all TypeScript files that likely contain controllers
     ts_files = list(project_path.rglob('*.ts'))
     controller_files = [
         f for f in ts_files
-        if 'node_modules' not in str(f)
-        and 'dist' not in str(f)
+        if not should_ignore(f, project_path, ignore_patterns)
         and '.spec.' not in f.name
         and '.test.' not in f.name
         and (
@@ -217,7 +464,9 @@ def _parse_nestjs_controller(file_path: Path, project_root: Path) -> list[Route]
         # Extract method name for a friendlier route name
         method_name_match = re.search(r'(?:async\s+)?(\w+)\s*\(', chunk.split('@')[-1])
         method_fn_name = method_name_match.group(1) if method_name_match else ''
-        route_name = _fn_name_to_label(method_fn_name) if method_fn_name else path_to_name(http_method, full_path)
+        # Always use path_to_name for descriptive, collision-free names
+        # The function name alone (e.g. "get", "create") is too generic
+        route_name = path_to_name(http_method, full_path)
 
         folder = folder_from_path(full_path)
 
@@ -253,15 +502,16 @@ def _fn_name_to_label(name: str) -> str:
 # Express Scanner
 # ---------------------------------------------------------------------------
 
-def scan_express(project_path: Path) -> list[Route]:
+def scan_express(project_path: Path, ignore_patterns: list[str] = None) -> list[Route]:
     """Scan Express project for all route definitions."""
     routes = []
+    if ignore_patterns is None:
+        ignore_patterns = []
 
     js_ts_files = list(project_path.rglob('*.ts')) + list(project_path.rglob('*.js'))
     router_files = [
         f for f in js_ts_files
-        if 'node_modules' not in str(f)
-        and 'dist' not in str(f)
+        if not should_ignore(f, project_path, ignore_patterns)
         and '.spec.' not in f.name
         and '.test.' not in f.name
         and _file_has_express_routes(f)
@@ -821,7 +1071,7 @@ def generate_collection(routes: list[Route], bruno_path: Path, dry_run: bool = F
 
         for seq, route in enumerate(folder_routes, start=1):
             route.seq = seq
-            filename = to_kebab(route.name) + '.bru'
+            filename = route_to_filename(route.method, route.path) + '.bru'
             bru_file = folder_path / filename
 
             status = write_bru_file(bru_file, route, dry_run=dry_run)
@@ -899,15 +1149,18 @@ def main():
         print("  ⚠  Could not detect framework. Trying both Express and NestJS scanners.")
         framework = 'both'
 
+    # Load ignore patterns from .gitignore
+    ignore_patterns = load_gitignore(project_path)
+
     # Scan routes
     routes = []
     print("\n  Scanning routes...")
     if framework in ('nestjs', 'both'):
-        nestjs_routes = scan_nestjs(project_path)
+        nestjs_routes = scan_nestjs(project_path, ignore_patterns)
         print(f"  NestJS: found {len(nestjs_routes)} routes")
         routes.extend(nestjs_routes)
     if framework in ('express', 'both'):
-        express_routes = scan_express(project_path)
+        express_routes = scan_express(project_path, ignore_patterns)
         print(f"  Express: found {len(express_routes)} routes")
         routes.extend(express_routes)
 

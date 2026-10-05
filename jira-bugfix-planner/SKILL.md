@@ -1,176 +1,220 @@
 ---
 name: jira-bugfix-planner
-description: Fetches a Jira ticket, summarizes the issue in plain language, researches the relevant codebase, and produces an implementation plan for the fix. Use this skill whenever the user asks to "check a ticket", "summarize a Jira issue", "investigate a bug from Jira", "plan a fix for ticket X", "look at ACME-XXXX", or any request that involves reading a Jira ticket and producing actionable engineering output. Also trigger when the user pastes a Jira URL or mentions a ticket key like ACME-1234, PROJ-456, etc. and wants to understand or fix the issue described in it. Also triggers when the user says "init jira", "setup jira", or "create jira config" to initialize a new `.jira.json` config file via jira-config-init.
+description: Fetches or consumes a Jira bug/task, summarizes the issue, researches the affected code path, and creates a lightweight implementation plan. Use when the user invokes "/jira-bugfix-planner", asks to investigate a Jira bug, or wants a fix plan before implementation.
 ---
 
 # Jira Bugfix Planner
 
-Fetch a Jira ticket, distill it into a clear summary, research the affected code, and produce an implementation plan — all in one pass.
+Create a focused bugfix implementation plan without the full feature-proposal
+workflow. This skill is for defects, regressions, and small corrective tasks
+where a heavy architecture proposal is unnecessary unless the user asks for one.
 
 ## When to Use
 
-- The user mentions a Jira ticket key (e.g. `ACME-1973`, `PROJ-42`)
-- The user pastes a Jira URL (e.g. `https://company.atlassian.net/browse/PROJ-42`)
-- The user says things like "check ticket", "investigate this issue", "plan a fix for", "summarise this bug"
+- The user invokes `/jira-bugfix-planner <TICKET>`.
+- The user asks to investigate or plan a fix for a Jira bug/task.
+- The user provides Jira details manually because MCP access is unavailable.
+- The task needs root cause analysis and an implementation plan before code.
 
----
+## Config
 
-## Config File: `.jira.json`
-
-This skill reads workspace configuration from a `.jira.json` file at the **root of the current repository**. This file should be committed to the repo so every developer in the project gets the right defaults automatically.
-
-### Schema
+Read `.jira.json` from the documentation repo root:
 
 ```json
 {
-  "cloudId": "your-company.atlassian.net",
-  "defaultProject": "PROJ",
-  "displayName": "Your Company / Project Name"
+  "cloudId": "acme.atlassian.net",
+  "defaultProject": "ACME",
+  "displayName": "Acme Web"
 }
 ```
 
-| Field | Required | Description |
-|---|---|---|
-| `cloudId` | ✅ | The Atlassian site URL (e.g. `acme.atlassian.net`). Used as the `cloudId` in every MCP call. |
-| `defaultProject` | ✅ | Default project key prefix (e.g. `ACME`, `PROJ`). Used to expand bare ticket numbers like `1973` → `PROJ-1973`. |
-| `displayName` | optional | Human-readable label shown in plan headers (e.g. `"Acme – Backend API"`). |
+If `.jira.json` is missing, run `/jira-config-init` (or ask the user for the site and project key).
 
-### `.gitignore` note
+Use Jira as a read-only source unless the user explicitly asks for a Jira write.
 
-The config file contains **no secrets** (no tokens, no passwords — auth is handled by the MCP server). It is safe and intended to be committed.
+## Workflow
 
----
+### Step 1. Load Local Context
 
-## Ticket Workflow
+Before planning, read:
 
-### Step 1. Load Config
+- `.jira.json`
+- `CLAUDE.md` / `AGENTS.md` / `.agent/instructions.md` (whichever exist)
+- `CONTRIBUTING.md`
+- The project's workflow guide, if any (e.g. `JIRA_WORKFLOW_GUIDE.md`)
+- Any existing plan/progress file for the ticket under `Sprints/<version>/bugs/`
+  (or the legacy `pipeline/1_plans/`, or a feature proposal folder
+  `Sprints/<version>/<TICKET>-<ShortName>/`)
 
-Before doing anything else, check for the config file:
+If the ticket affects a code repo, also read that repo's `README.md`,
+`docs/CONTRIBUTING.md`, relevant `docs/`, `.agent/rules.md`, and local
+Jira-planning skill/workflow if present.
 
-```bash
-cat .jira.json 2>/dev/null || echo "NOT_FOUND"
+### Step 2. Fetch or Ingest Ticket Details
+
+If Jira MCP is available, fetch the issue with
+`mcp_atlassian-mcp-server_getJiraIssue` using:
+
+- `cloudId`: the `cloudId` from `.jira.json`
+- `responseContentFormat`: `markdown`
+
+Extract summary, description, issue type, priority, status, reporter, assignee,
+labels/components, linked issues, comments, and attachments.
+
+If Jira is unavailable and the user pasted ticket details, use the pasted details
+and explicitly note that Jira was not queried.
+
+### Step 3. Summarize the Issue
+
+Write a concise summary that answers:
+
+1. What is the user-facing problem?
+2. What should happen instead?
+3. What is the impact and affected workflow?
+4. What reproduction context or environment is known?
+
+Do not copy the Jira description verbatim. Distill it.
+
+### Step 4. Research the Code Path
+
+Read at least 2-3 relevant files in the affected repo(s). Trace the path from
+entry point to failure point:
+
+- UI render/click/state path for frontend bugs.
+- API/controller/service/repository path for backend bugs.
+- Queue/worker/file-processing path for background-job bugs.
+- Shared DTO/payload/export/import consumers when the fix touches shared data.
+
+When payload data exists but UI behavior is wrong, verify render/update wiring
+before assuming a backend issue.
+
+### Step 5. Create the Plan
+
+First determine whether this is a **normal bug** (ships through the version branch) or a **hotfix** (pushed directly to prod, out-of-band from `version/vX.Y.Z`). Ask the user if it's not clear from the ticket. This decides the folder and the dashboard table.
+
+Plans live in the sprint as **one file** by default (promote to a sub-folder only if extra reference files are needed):
+
+```text
+Normal bug → Sprints/<version>/bugs/<TICKET>-<ShortName>.md
+Hotfix     → Sprints/<version>/hotfixes/<TICKET>-<ShortName>.md
 ```
 
-- **If found:** parse `cloudId`, `defaultProject`, and `displayName` from it. Silently proceed.
-- **If not found:** inform the user:
-  > No `.jira.json` found in the current directory. You can run **"jira-config-init"** to create one, or provide the Atlassian site URL now (e.g. `acme.atlassian.net`).
+Determine `<version>` from the ticket's Jira sprint/fixVersion. Create `Sprints/<version>/bugs/` or `Sprints/<version>/hotfixes/` if it doesn't exist. Do **not** use `pipeline/1_plans/` for new plans (legacy location).
 
-  If the user provides the `cloudId` inline (e.g. from a pasted URL), use it for this session only — do not create a config file unless asked.
+For a **hotfix**, the plan must also cover: the **back-merge** into `version/vX.Y.Z` (so the release doesn't revert it) and, if behavior-changing, an **immediate `/product-doc-sync` on deploy** (not at release).
 
-### Step 2. Extract the Ticket Key
-
-Parse the ticket key from the user's message. It may appear as:
-- A bare key like `ACME-1973`
-- Embedded in a URL like `https://company.atlassian.net/browse/PROJ-42`
-- A bare number like `1973` — expand using `defaultProject` from config → `ACME-1973`
-- Referenced casually like "that 1973 ticket" (ask for clarification if ambiguous)
-
-### Step 3. Fetch the Ticket from Jira
-
-Use the `mcp_atlassian-mcp-server_getJiraIssue` tool to retrieve the ticket details.
-
-- Set `cloudId` to the value loaded from config (or provided by the user)
-- Request `markdown` as the `responseContentFormat`
-- Extract these key fields:
-  - **Summary** (title)
-  - **Description** (the full issue body)
-  - **Issue Type** (Bug, Story, Task, etc.)
-  - **Priority**
-  - **Status**
-  - **Assignee** / **Reporter**
-  - **Labels / Components** (if present)
-  - **Linked Issues** (related context)
-  - **Comments** (reproduction steps or teammate context)
-  - **Attachments** (screenshots or files mentioned)
-
-### Step 4. Summarize the Issue
-
-Write a clear, concise summary (3–6 sentences) that answers:
-
-1. **What is the problem?** — Describe the user-facing bug or feature gap in plain English.
-2. **What is the expected behaviour?** — What should happen instead.
-3. **What is the impact?** — Who is affected and how severely.
-4. **Reproduction context** — Specific steps, data, or environment details from the ticket or comments.
-
-Avoid copying the Jira description verbatim — distill and clarify it. If the ticket is vague or missing details, explicitly call out what is missing and ask the user.
-
-### Step 5. Research the Codebase
-
-Investigate the relevant source code to understand the root cause:
-
-1. **Identify entry points** — Use `grep_search` to locate the functions, services, or modules mentioned in the ticket (error messages, feature names, entity names).
-2. **Trace the data flow** — Read relevant files with `view_file` to follow the call chain from entry point to the suspected failure point.
-3. **Identify the root cause** — Form a hypothesis about why the bug occurs or what needs to change.
-4. **Note dependencies** — Files, entities, services, or external systems affected by the fix.
-
-Read at least 2–3 relevant files. Quality of the plan depends on understanding the code.
-
-### Step 6. Create the Implementation Plan
-
-Write the plan as an artifact (`implementation_plan.md`):
+Use this structure:
 
 ```markdown
-# [Goal — one-line description]
+# <TICKET>: <Fix Title>
 
-Brief description of the problem and what the fix accomplishes.
-
-> **Project:** <displayName from config, or cloudId>  
-> **Ticket:** [PROJ-XXX](https://cloudId/browse/PROJ-XXX)
+> **Ticket:** [<TICKET>](https://<cloudId>/browse/<TICKET>)  
+> **Source:** Jira MCP / User-provided Jira details  
+> **Plan Date:** YYYY-MM-DD
 
 ## Jira Ticket Summary
 
 | Field | Value |
 |---|---|
-| Key | PROJ-XXX |
-| Type | Bug / Story / Task |
+| Key | <TICKET> |
+| Type | Bug / Task |
+| Impact | behavior (user-visible change → needs Wiki update at ship) / internal |
 | Priority | High / Medium / Low |
-| Status | To Do / In Progress |
-| Reporter | Name |
+| Status | <Status> |
+| Reporter | <Name> |
 
-[Your distilled summary from Step 4]
+<Distilled summary.>
+
+## Risk Classification
+
+> Score every dimension at planning time. **Overall risk = the highest single dimension.** Gate depth scales with this (see the project's workflow guide → risk tiers, if defined).
+
+| Dimension | Score (Low/Med/High) | Reason |
+|---|---|---|
+| Code surface | | One file → Low · one repo/several modules → Med · multiple repos or shared package → High |
+| Data contract | | Internal only → Low · API/DTO changed → Med · shared payload/persisted JSON/import-export shape → High |
+| UI impact | | Hidden/internal → Low · one screen → Med · grid/upload/export/bulk/core workflow → High |
+| Tenant/data risk | | No customer data → Low · reads customer/tenant data → Med · writes/migrates tenant-scoped data → High |
+| Regression history | | Stable area → Low · some bugs → Med · repeated cluster (per `Operations/KNOWN-FAILURE-MODES.md`) → High |
+
+**Overall Risk**: <Low / Medium / High>
+
+## Repro
+
+> **Required.** A fix cannot be verified without a repro to re-run. Keep it exact enough that a different session (or a cheaper model) can reproduce the bug mechanically.
+
+- **Steps**: numbered, exact click/API path to trigger the bug.
+- **Input**: the file/data that triggers it — reference an existing test fixture (e.g. `Operations/fixtures/`) where one applies; if this is a parser/import bug, a fixture **must** be added as part of the fix.
+- **Expected vs Actual**: what should happen vs what happens today.
 
 ## Root Cause Analysis
 
-Explain why the issue occurs, referencing specific files and line numbers.
+Explain the likely cause with concrete file paths and line references.
 
 ## Proposed Changes
 
-### [Component Name]
+### <Repo or Component>
 
-#### [MODIFY] [filename](file:///absolute/path)
-- What will change and why
+#### [MODIFY] <absolute path>
+- What will change and why.
 
-#### [NEW] [filename](file:///absolute/path)  (if applicable)
-- What this new file does
+#### [NEW] <absolute path>
+- What the new file does, if needed.
+
+## Compatibility and Regression Surfaces
+
+List impacted workflows separately, such as import/rating, reprocess/reload,
+Bulk Update, export, grid display, popup behavior, reports, background jobs, or
+shared payload consumers.
 
 ## Open Questions
 
-Any clarifying questions for the user that affect the implementation.
+- Use `None` if no blocker remains.
 
 ## Verification Plan
 
 ### Automated Tests
-- Specific test commands or new test cases needed
+- **Regression unit test first**: a unit test that fails on the buggy code and passes after the fix — `<file>.spec.ts` / `<file>.test.ts::<case>` plus its scoped run command. If the buggy logic is inline in a React component, extract it into a pure `*.utils.ts` function as part of the fix and test that.
+- Other specific test files or commands. Integration (real DB) or E2E smoke only if the bug can't be reproduced at unit level — say why, run them once at the end, and keep any E2E read-only.
 
 ### Manual Verification
-- Steps the user should take to verify the fix
+- Exact workflow checks.
+
+## Bug Escape Classification
+
+> **Required for Medium+ priority bugs.** Turns the bug into pipeline telemetry: root cause says *what broke*; escaped gate says *which pipeline step should have caught it*. Aggregated by `/incident-reporter --aggregate` into the sprint's Gate-Leak Histogram.
+
+| Field | Value |
+|---|---|
+| Affected workflow | <e.g. orders grid filters — maps to a regression-matrix row> |
+| Root cause category | <missing requirement · ambiguous requirement · missed downstream consumer · missing unit/integration test · missing UI/manual smoke · fixture gap · environment/migration gap · tenant scoping · third-party behavior · performance · merge/back-merge> |
+| Escaped gate | <proposal missed it · CIR missed it · task too broad · build/tests didn't cover it · smoke skipped · fixture unrepresentative · matrix lacked the row · hotfix not back-merged> |
+| Should become regression? | <Yes → name the fixture / matrix row / contract point added · No → why not> |
+| Prevention added | <e.g. "grid-contract point 5 now covers derived numeric columns"> |
+
+If the root cause is a *new* class not already in `Operations/KNOWN-FAILURE-MODES.md`, `/incident-reporter` appends it there.
+
+## Implementation Boundary
+
+- State what is explicitly out of scope.
+- State whether Jira writes, production deployment, migrations, or branch/commit
+  work are out of scope for this plan.
 ```
 
-Set `request_feedback = true` on the artifact so the user can approve before execution begins.
+### Step 6. Update the Sprint Dashboard
 
-### Step 7. Ask the User
+1. Open `Sprints/<version>/<version>.md`.
+2. **Normal bug** → add/update a row in the `## Bug Fixes` table: `Key | Summary | Impact | Status | Plan`, where **Impact** is `behavior` or `internal` and **Plan** links to `bugs/<TICKET>-<ShortName>.md`.
+3. **Hotfix** → add/update a row in the `## Hotfixes` table: `Key | Summary | Impact | Prod Deploy | Back-merged? | Wiki synced?`, with **Plan** linking to `hotfixes/<TICKET>-<ShortName>.md`. Set **Back-merged?** and **Wiki synced?** to ❌ until each is actually done.
+4. If the relevant table doesn't exist yet, create it (or run `/sprint-manager` to regenerate a dashboard that predates this convention).
 
-After presenting the plan:
-- Highlight open questions or ambiguities from the ticket
-- Ask if the user wants to proceed with execution
-- If approved, follow the standard planning-mode execution workflow (create `task.md`, implement, verify, create `walkthrough.md`)
+> This is what lets the post-ship `/product-doc-sync` step find behavior-changing changes. A fix that never lands in the dashboard is invisible to the Wiki sync — and for a hotfix, the `## Hotfixes` row is also the audit trail for the mandatory back-merge.
 
----
+### Step 7. Handoff
 
-## Tips for Quality
+Present the plan path, summarize open questions, and ask for approval before
+implementation unless the user already explicitly asked to implement after
+planning.
 
-- **Don't rush the code research.** A shallow plan that misses a secondary affected file wastes more time than spending an extra minute reading code.
-- **Call out missing information early.** If the ticket is vague about reproduction steps or expected behaviour, ask before planning.
-- **Link to specific code.** Use file links with line numbers (e.g. `[powerLane.ts:L69](file:///path/to/file#L69)`) so the plan is immediately actionable.
-- **Consider test coverage.** Check if existing tests cover the affected area. If not, include adding tests in the plan.
-- **Config is per-repo.** If you switch to a different repository mid-session, re-read `.jira.json` from the new working directory.
+After approval, implementation should follow the repo-local code conventions and
+validation rules in `AGENTS.md` and the target repo's `docs/CONTRIBUTING.md`.

@@ -18,14 +18,16 @@ The execution engine for the custom Jira workflow. Reads the `PROGRESS.md` gener
 ## Workflow
 
 ### Step 1. Setup & Branching
-1. **Find the Tracker**: Locate the `PROGRESS.md` file for the given ticket. (e.g., in `Sprints/<version>/<TICKET_KEY>-<ShortName>/<TICKET_KEY>-PROGRESS.md` or `pipeline/1_plans/`).
+1. **Find the Tracker**: Locate the `PROGRESS.md` file for the given ticket. (e.g., in `Sprints/<version>/<TICKET_KEY>-<ShortName>/<TICKET_KEY>-PROGRESS.md`, or for bugs `Sprints/<version>/bugs/<TICKET_KEY>-<ShortName>.md`, or the legacy `pipeline/1_plans/`).
 2. **Read the Rules**: Locate and read `CONTRIBUTING.md` in the target repository to understand the project's branching strategy (e.g., `feature/*`, `bug/*`).
 3. **Ask the User**: Recommend 2-3 branch names based on the strategy and the ticket key. 
    > "Based on `CONTRIBUTING.md`, here are recommended branch names for this ticket:
-   > 1. `feature/ACME-1823-mexico-support`
+   > 1. `feature/ACME-1823-multi-currency`
    > 2. `feat/ACME-1823`
    > What would you like to name the branch?"
 4. **Checkout**: Once the user confirms, run `git checkout -b <branch_name>`.
+
+> **Project rules win.** If the project's `CLAUDE.md` / `AGENTS.md` or the user's saved preferences say the user manages branches, or that the agent must not commit, skip branch creation (work on the current branch) and replace every "commit" step below with "present the diff and stop" — the user commits after approving.
 
 ### Step 2. Update Sprint Doc Status (In Progress)
 1. Read `Sprints/<version>/<version>.md` in the documentation repo.
@@ -39,14 +41,19 @@ To ensure manageable, bite-sized reviewable steps, the executor MUST execute exa
 
 For the first active phase containing unmarked `[ ]` tasks:
 1. **Locate Phase**: Identify the active phase in `PROGRESS.md` (e.g., Phase 1).
-2. **Execute Tasks in Phase**: For every unmarked `[ ]` task in the *current phase*:
+2. **Pre-flight Plan Review (MANDATORY, before any code)**: Run the `preflight-plan-review` protocol against **this phase's** tasks — verify every anchor and stated assumption against HEAD *right now*, before writing anything. This runs at **every phase boundary**, not just Phase 1: your own earlier-phase edits move later phases' anchors. Follow the `preflight-plan-review` skill's protocol:
+   - `adjust-and-log` mismatches (pure anchor drift): self-correct, note in the recon block, continue.
+   - `stop-and-adjudicate` findings (false assumption, incomplete enumeration, structure-vs-data conflict, or a design concern you can articulate — **you are invited to dissent, not just permitted**): write them to the `## Pre-flight Plan Review — Phase N` block, set status to `⏸ Plan Amendment Needed`, and **halt** — do not implement. A strong session adjudicates and amends the plan; you resume only against the amended plan.
+   - Record the recon block + `✅`/`⚠️` task marks even when everything passes.
+3. **Execute Tasks in Phase**: For every unmarked `[ ]` task in the *current phase*:
    a. **Context**: Read the corresponding phase/tasks in the Proposal document (`<TICKET_KEY>-<ShortName>.md`) to get the deep technical details, schema definitions, and AC for the task.
-   b. **Work**: Implement the code. Use standard skills/tools (e.g., TypeScript refactoring, TypeORM).
+   b. **Work**: Implement the code. Use standard skills/tools (e.g., `code-consistency`, `ts-refactor`, `generate-migration` for schema changes).
    c. **Verify**: Ensure the code builds and tests pass.
    d. **Mark**: Update `PROGRESS.md` to `[/]` when starting, and `[x]` when completed.
-   e. **Commit**: Make an atomic `git commit` for the task using conventional commits (e.g., `feat: ACME-1823 - implement PowerLane entity`).
+   e. **Commit**: Make an atomic `git commit` for the task using conventional commits (e.g., `feat: ACME-1823 - implement Invoice entity`).
 3. **Complete Phase & Stop for Review**: Once all tasks in the active phase are marked `[x]`, the executor MUST immediately stop execution and prompt the user for feedback.
    - Present a git diff of the changes made during the phase.
+   - The review itself is the `phase-code-review` protocol (`/phase-code-review`). It re-derives the diff, tests this phase's claims, hunts over-engineering and duplication, and reopens tasks whose evidence does not exist. Do not self-certify the phase in its place.
    - Ask the user:
      > 🔍 **Phase Complete & Review Gate**:
      > Phase <Phase Number> has been completed successfully. 
@@ -54,19 +61,29 @@ For the first active phase containing unmarked `[ ]` tasks:
      > Are there any issues or code changes you'd like me to address, or should we proceed to the next phase/task?
 4. **Wait for Approval**: Do NOT execute any tasks in subsequent phases until the user explicitly reviews and approves the current phase.
 
+### Step 3.5. Bug Repro Re-Verification (bug tickets only)
 
-### Step 4. PR Creation & Sprint Status Update (PR Open)
-Once all tasks in `PROGRESS.md` are marked `[x]`:
-1. **Push**: `git push -u origin <branch_name>`
-2. **PR**: Create a PR using `gh pr create` (or instruct the user to do so if `gh` is unavailable).
-3. **Update Sprint Doc**: 
-   - Read `Sprints/<version>/<version>.md`
-   - Update the Status of `<TICKET_KEY>` to `🔀 PR Open`
-   - Save the sprint doc.
+When the ticket being executed is a **bug** (plan lives in `Sprints/<version>/bugs/`), the final phase MUST end with one mandatory closing task before the PR step:
 
-### Step 5. Handoff to User
+> **Re-run the `## Repro` from the bug plan and record the result in `PROGRESS.md`.**
+> - Reproduce using the plan's exact steps + input (fixture where applicable).
+> - Record **pass + evidence** (test name, fixture-test output, or dated screenshot) — a bare `[x]` is not evidence.
+> - If the repro still triggers the bug, the fix is not done: add a new task, do not open the PR.
+
+This is what stops QA bounce-backs (a fix marked done on build/tests alone, without re-running the original repro). A parser/import bug's repro input must be committed as a test fixture with its expected output.
+
+### Step 4. Mechanical Verification (end of execution) — the executor's half of the Verify gate
+Once all implementation tasks in `PROGRESS.md` are marked `[x]`, the executor does **not** open the PR. It produces the evidence that the independent Step 6 audit (`/verify-implementation`) will judge. This is the *mechanical* half — running checks and recording results; the *judgment* half runs in a separate session.
+
+1. **Run the checks as executable checks** — the proposal's CIR verifications and workflow-contract points (each is already an atomic task from `generate-progress-report`): unit/integration tests where they exist; the project's fixture/smoke command where they don't. Always run tests scoped to the changed files — never an unscoped suite unless the project says it is safe. For a **bug**, this includes the mandatory `## Repro` re-run (Step 3.5).
+2. **Record a `## Verification` section in `PROGRESS.md`** — one row per check, dated and environment-stamped, naming the data used: `check · pass/fail · date · env · data`. A bare `[x]` is not evidence. **A failed check is a new task, not a footnote** — add it and keep executing.
+3. **Anti-drift rule**: `PROGRESS.md` may never report `Feature Completion: 100%` while any manual smoke or staging verification is still pending. Pending evidence is an open task.
+4. **Push the branch**: `git push -u origin <branch_name>` — so the fresh Step 6 session can read the final diff from the remote.
+5. **Update Sprint Doc**: set `<TICKET_KEY>` status to `🧪 Verifying` (not `🔀 PR Open` — the PR is opened by `/verify-implementation` only after a clean audit).
+
+### Step 5. Handoff to the Verify Gate
 Output the following explicit message:
-> *"Execution complete and PR opened! The sprint document has been updated."*
+> *"Execution complete, `## Verification` evidence recorded, and branch pushed. Status → 🧪 Verifying. Run `/verify-implementation <TICKET_KEY>` in a **fresh session** to audit the evidence and open the PR."*
 
 **Session Bookmark**:
 > *"Session complete. To resume later, run `/workflow-status <version>`."*
